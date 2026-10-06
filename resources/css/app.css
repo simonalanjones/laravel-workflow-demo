@@ -7,3 +7,8 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* Use current row positions rather than visibility retained from an earlier filter. */
+.booking-activity:not(.is-expanded) > li:nth-child(n + 8) {
+    display: none;
+}

@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Booking Queue Dashboard</title>
+    <title>Bookings · Laravel Workflow Demo</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-gray-100 text-gray-900">
-    <main class="mx-auto max-w-6xl px-6 py-10">
+<body class="flex min-h-screen flex-col bg-slate-50 text-slate-950 antialiased">
+    <main class="mx-auto w-full max-w-[1440px] flex-1 px-5 py-6 sm:px-10 sm:py-8">
         <livewire:dashboard-bookings />
     </main>
+    @include('partials.project-footer')
 </body>
 </html>
