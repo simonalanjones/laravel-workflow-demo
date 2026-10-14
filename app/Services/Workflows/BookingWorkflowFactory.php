@@ -6,7 +6,7 @@ use App\Models\Booking;
 
 class BookingWorkflowFactory
 {
-    public function createFor(Booking $booking): void
+    public function createFor(Booking $booking, bool $requiresSignoff = true): void
     {
         foreach ($booking->items as $item) {
 
@@ -31,6 +31,10 @@ class BookingWorkflowFactory
                         str_replace('_', ' ', $workflowType),
                 ]
             );
+        }
+
+        if (! $requiresSignoff) {
+            return;
         }
 
         $booking->workflows()->firstOrCreate(

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class BookingActivity extends Model
 {
@@ -25,5 +26,10 @@ class BookingActivity extends Model
             BookingWorkflow::class,
             'booking_workflow_id'
         );
+    }
+
+    public function providerAttempt(): HasOne
+    {
+        return $this->hasOne(ProviderRequestAttempt::class);
     }
 }

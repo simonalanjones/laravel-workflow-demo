@@ -5,7 +5,7 @@ namespace App\Services\Workflows;
 use App\Attributes\DependsOn;
 use App\Jobs\ProcessBookingWorkflowJob;
 use App\Models\BookingWorkflow;
-
+use Illuminate\Support\Facades\Bus;
 
 class WorkflowCoordinator
 {
@@ -35,8 +35,7 @@ class WorkflowCoordinator
                 ->get();
 
             $hasIncompleteDependency = $dependencies->contains(
-                fn (BookingWorkflow $dependency) =>
-                    $dependency->status !== 'completed'
+                fn (BookingWorkflow $dependency) => $dependency->status !== 'completed'
             );
 
             if ($hasIncompleteDependency) {
@@ -44,18 +43,20 @@ class WorkflowCoordinator
             }
         }
 
-        $claimed = BookingWorkflow::query()
-            ->whereKey($workflow->id)
-            ->where('status', 'pending')
-            ->update([
-                'status' => 'queued',
-                'message' => 'Queued for processing',
-            ]);
+        $workflow->getConnection()->transaction(function () use ($workflow): void {
+            $claimed = $workflow->newQuery()
+                ->whereKey($workflow->id)
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'queued',
+                    'message' => 'Queued for processing',
+                ]);
 
-        if ($claimed === 0) {
-            return;
-        }
+            if ($claimed === 0) {
+                return;
+            }
 
-        dispatch(new ProcessBookingWorkflowJob($workflow));
+            Bus::dispatch((new ProcessBookingWorkflowJob($workflow))->beforeCommit());
+        });
     }
 }

@@ -23,6 +23,9 @@ class StoreBookingRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'requires_signoff' => 'sometimes|boolean',
+            'simulate_network_delay' => 'sometimes|boolean',
+            'simulate_lost_response' => 'sometimes|boolean',
             'reference' => 'required|string|unique:bookings,reference',
             'customer_name' => 'required|string',
             'customer_email' => 'required|email',

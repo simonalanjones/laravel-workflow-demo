@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire;
+namespace App\Livewire\Bookings;
 
 use App\Events\WorkflowItemCompleted;
 use App\Models\Booking;
@@ -9,9 +9,10 @@ use App\Services\BookingStateService;
 use App\Services\Workflows\WorkflowCoordinator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 use Livewire\Component;
 
-class BookingDetail extends Component
+class Detail extends Component
 {
     public Booking $booking;
 
@@ -22,7 +23,7 @@ class BookingDetail extends Component
         $this->booking = $booking;
     }
 
-    public function render()
+    public function render(): View
     {
         $this->booking->refresh();
 
@@ -43,7 +44,14 @@ class BookingDetail extends Component
             ? $selectedWorkflow->activities
             : $this->booking->activities;
 
-        return view('livewire.booking-detail', [
+        $activities->load('providerAttempt.providerRequest');
+
+        $activities = $activities->whereNotIn('type', [
+            'workflow_processing', 'workflow_item_processing',
+            'processing_started', 'booking_processing_complete', 'booking_processing_failed',
+        ]);
+
+        return view('livewire.bookings.detail', [
             'selectedWorkflow' => $selectedWorkflow,
             'activities' => $activities,
             'workflowProgress' => $this->workflowProgress(),
@@ -51,7 +59,7 @@ class BookingDetail extends Component
     }
 
     /**
-     * @return array{taskCount: int, completedCount: int, failedTasks: Collection, approvalTask: ?BookingWorkflow, summaryTitle: string, summaryDescription: string, summaryLabel: string}
+     * @return array{isComplete: bool, taskCount: int, completedCount: int, failedTasks: Collection, approvalTask: ?BookingWorkflow, summaryTitle: string, summaryDescription: string, summaryLabel: string}
      */
     private function workflowProgress(): array
     {
@@ -60,8 +68,10 @@ class BookingDetail extends Component
         $failedTasks = $this->booking->workflows->where('status', 'failed');
         $approvalTask = $this->booking->workflows->first(fn ($task) => $task->type === 'operations_signoff' && $task->status === 'awaiting_approval');
 
+        $isComplete = $this->booking->status->value === 'processed' && $failedTasks->isEmpty() && ! $approvalTask;
+
         if ($failedTasks->isNotEmpty()) {
-            $summaryTitle = $failedTasks->count() === 1 ? 'A workflow needs attention' : 'Workflows need attention';
+            $summaryTitle = $failedTasks->count() === 1 ? 'A workflow item needs attention' : 'Workflows need attention';
             $summaryDescription = $failedTasks->count() === 1
                 ? ucfirst(str_replace('_', ' ', $failedTasks->first()->type)).' could not be completed. Review the details and retry when ready.'
                 : $failedTasks->count().' workflows could not be completed. Review each failed step below.';
@@ -70,10 +80,10 @@ class BookingDetail extends Component
             $summaryTitle = 'Ready for your approval';
             $summaryDescription = 'Review the booking details, then approve operations signoff to complete this step.';
             $summaryLabel = 'Next step';
-        } elseif ($this->booking->status->value === 'processed') {
+        } elseif ($isComplete) {
             $summaryTitle = 'Booking complete';
             $summaryDescription = 'All workflow steps are complete. No further action is needed.';
-            $summaryLabel = 'All done';
+            $summaryLabel = '';
         } elseif ($taskCount > 0 && $completedCount === $taskCount) {
             $summaryTitle = 'Finalising booking';
             $summaryDescription = 'All workflow steps are complete. Waiting for the booking status to update.';
@@ -93,7 +103,7 @@ class BookingDetail extends Component
         }
 
         return compact(
-            'taskCount', 'completedCount', 'failedTasks', 'approvalTask',
+            'isComplete', 'taskCount', 'completedCount', 'failedTasks', 'approvalTask',
             'summaryTitle', 'summaryDescription', 'summaryLabel',
         );
     }
@@ -118,7 +128,7 @@ class BookingDetail extends Component
 
         $workflow->activities()->create([
             'booking_id' => $workflow->booking_id,
-            'type' => 'workflow_retried',
+            'type' => 'workflow_item_retry_requested',
             'message' => ucfirst(
                 str_replace('_', ' ', $workflow->type)
             ).' manually retried',
@@ -157,7 +167,7 @@ class BookingDetail extends Component
 
             $workflow->activities()->create([
                 'booking_id' => $workflow->booking_id,
-                'type' => 'workflow_approved',
+                'type' => 'workflow_item_approved',
                 'message' => 'Operations signoff approved',
             ]);
         });

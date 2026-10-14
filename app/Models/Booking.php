@@ -13,12 +13,16 @@ class Booking extends Model
         'customer_name',
         'customer_email',
         'status',
+        'simulate_network_delay',
+        'simulate_lost_response',
     ];
 
     protected function casts(): array
     {
         return [
             'status' => BookingStatus::class,
+            'simulate_network_delay' => 'boolean',
+            'simulate_lost_response' => 'boolean',
         ];
     }
 

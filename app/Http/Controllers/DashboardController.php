@@ -4,10 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Enums\BookingStatus;
 use App\Models\Booking;
+use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(): View
     {
         $bookings = Booking::with('items')
             ->latest()
@@ -20,14 +21,13 @@ class DashboardController extends Controller
             'failed' => $bookings->where('status', BookingStatus::Failed)->count(),
         ];
 
-        return view('dashboard', [
+        return view('bookings.index', [
             'bookings' => $bookings,
             'counts' => $counts,
         ]);
     }
 
-
-    public function show(Booking $booking)
+    public function show(Booking $booking): View
     {
         $booking->load([
             'items',
@@ -40,4 +40,13 @@ class DashboardController extends Controller
         ]);
     }
 
+    public function create(): View
+    {
+        return view('bookings.create');
+    }
+
+    public function test(): View
+    {
+        return view('bookings.test');
+    }
 }

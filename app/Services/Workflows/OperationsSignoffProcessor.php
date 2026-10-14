@@ -4,6 +4,7 @@ namespace App\Services\Workflows;
 
 use App\Attributes\DependsOn;
 use App\Attributes\HandlesWorkflow;
+use App\Models\BookingActivity;
 use App\Models\BookingWorkflow;
 use App\Services\Workflows\Contracts\WorkflowProcessor;
 use Illuminate\Support\Facades\DB;
@@ -16,18 +17,12 @@ use Illuminate\Support\Facades\DB;
 ])]
 class OperationsSignoffProcessor implements WorkflowProcessor
 {
-    public function process(BookingWorkflow $workflow): void
+    public function process(BookingWorkflow $workflow, ?BookingActivity $activity = null): void
     {
         DB::transaction(function () use ($workflow) {
             $workflow->update([
                 'status' => 'processing',
                 'message' => 'Preparing booking for operations review',
-            ]);
-
-            $workflow->activities()->create([
-                'booking_id' => $workflow->booking_id,
-                'type' => 'workflow_processing',
-                'message' => 'Operations signoff started',
             ]);
 
             $workflow->update([
@@ -37,7 +32,7 @@ class OperationsSignoffProcessor implements WorkflowProcessor
 
             $workflow->activities()->create([
                 'booking_id' => $workflow->booking_id,
-                'type' => 'workflow_awaiting_approval',
+                'type' => 'workflow_item_awaiting_approval',
                 'message' => 'Operations signoff awaiting approval',
             ]);
         });

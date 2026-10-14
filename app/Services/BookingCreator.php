@@ -22,6 +22,8 @@ class BookingCreator
                 'customer_name' => $data['customer_name'],
                 'customer_email' => $data['customer_email'],
                 'status' => BookingStatus::Pending,
+                'simulate_network_delay' => $data['simulate_network_delay'] ?? false,
+                'simulate_lost_response' => $data['simulate_lost_response'] ?? false,
             ]);
 
             foreach ($data['items'] as $item) {
@@ -40,7 +42,7 @@ class BookingCreator
 
             $booking->load('items');
 
-            $this->workflowFactory->createFor($booking);
+            $this->workflowFactory->createFor($booking, (bool) ($data['requires_signoff'] ?? true));
 
             return $booking;
         });

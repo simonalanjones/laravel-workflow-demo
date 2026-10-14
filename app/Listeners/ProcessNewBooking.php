@@ -3,7 +3,6 @@
 namespace App\Listeners;
 
 use App\Events\BookingCreated;
-use App\Jobs\ProcessBookingJob;
 use App\Services\Workflows\WorkflowCoordinator;
 
 class ProcessNewBooking
@@ -20,8 +19,6 @@ class ProcessNewBooking
      */
     public function handle(BookingCreated $event): void
     {
-        dispatch(new ProcessBookingJob($event->booking));
-
         $event->booking->loadMissing('workflows');
 
         foreach ($event->booking->workflows as $workflow) {

@@ -14,5 +14,5 @@ Route::post('/demo/providers/flights/confirm', [
     DemoProviderController::class, 'ConfirmFlight',
 ]);
 Route::post('/demo/providers/vehicles/confirm', [
-    DemoProviderController::class, 'confirmVehicle'
+    DemoProviderController::class, 'confirmVehicle',
 ]);

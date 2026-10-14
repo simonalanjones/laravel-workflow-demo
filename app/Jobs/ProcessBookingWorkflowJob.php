@@ -3,6 +3,8 @@
 namespace App\Jobs;
 
 use App\Events\WorkflowItemCompleted;
+use App\Exceptions\ProviderRequestFailedException;
+use App\Exceptions\ProviderResponseLostException;
 use App\Models\BookingWorkflow;
 use App\Services\BookingStateService;
 use App\Services\Workflows\WorkflowProcessorResolver;
@@ -46,11 +48,11 @@ class ProcessBookingWorkflowJob implements ShouldQueue
             $this->workflow->booking
         );
 
-        $this->workflow->activities()->create([
+        $activity = $this->workflow->activities()->create([
             'booking_id' => $this->workflow->booking_id,
-            'type' => 'workflow_attempt',
+            'type' => 'workflow_item_attempt_started',
             'message' => sprintf(
-                '%s attempt %d',
+                '%s — attempt %d started',
                 ucfirst(str_replace('_', ' ', $this->workflow->type)),
                 $this->attempts()
             ),
@@ -59,17 +61,31 @@ class ProcessBookingWorkflowJob implements ShouldQueue
         try {
             $processor = $resolver->resolve($this->workflow);
 
-            $processor->process($this->workflow);
+            $processor->process($this->workflow, $activity);
         } catch (\Throwable $exception) {
+            if ($exception instanceof ProviderResponseLostException) {
+                $this->workflow->update([
+                    'message' => $this->attempts() < $this->tries
+                        ? 'Response lost — retrying to retrieve confirmation'
+                        : 'Response lost — automatic retries exhausted. Retry to retrieve confirmation.',
+                ]);
+            }
+
             $this->workflow->activities()->create([
                 'booking_id' => $this->workflow->booking_id,
-                'type' => 'workflow_attempt_failed',
-                'message' => sprintf(
-                    '%s attempt %d failed: %s',
-                    ucfirst(str_replace('_', ' ', $this->workflow->type)),
-                    $this->attempts(),
-                    $exception->getMessage()
-                ),
+                'type' => 'workflow_item_attempt_failed',
+                'message' => $exception instanceof ProviderRequestFailedException
+                    ? sprintf('%s — attempt %d failed (HTTP %d)',
+                        ucfirst(str_replace('_', ' ', $this->workflow->type)),
+                        $this->attempts(),
+                        $exception->httpStatus,
+                    )
+                    : sprintf(
+                        '%s — attempt %d failed: %s',
+                        ucfirst(str_replace('_', ' ', $this->workflow->type)),
+                        $this->attempts(),
+                        $exception->getMessage()
+                    ),
             ]);
 
             throw $exception;
@@ -85,7 +101,7 @@ class ProcessBookingWorkflowJob implements ShouldQueue
 
         $this->workflow->activities()->create([
             'booking_id' => $this->workflow->booking_id,
-            'type' => 'workflow_failed',
+            'type' => 'workflow_item_failed',
             'message' => sprintf(
                 '%s failed: %s',
                 str_replace('_', ' ', ucfirst($this->workflow->type)),
@@ -97,7 +113,7 @@ class ProcessBookingWorkflowJob implements ShouldQueue
             $this->workflow->booking
         );
     }
-    
+
     public function middleware(): array
     {
         return [

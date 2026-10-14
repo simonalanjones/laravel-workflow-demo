@@ -4,6 +4,7 @@ namespace App\Services\Workflows;
 
 use App\Attributes\HandlesWorkflow;
 use App\Events\WorkflowItemCompleted;
+use App\Models\BookingActivity;
 use App\Models\BookingWorkflow;
 use App\Services\Providers\VehicleProviderClient;
 use App\Services\Workflows\Contracts\WorkflowProcessor;
@@ -16,21 +17,16 @@ class VehicleConfirmationProcessor implements WorkflowProcessor
         private VehicleProviderClient $provider
     ) {}
 
-    public function process(BookingWorkflow $workflow): void
+    public function process(BookingWorkflow $workflow, ?BookingActivity $activity = null): void
     {
         $workflow->update([
             'status' => 'processing',
             'message' => 'Confirming vehicle with provider',
         ]);
 
-        $workflow->activities()->create([
-            'booking_id' => $workflow->booking_id,
-            'type' => 'workflow_processing',
-            'message' => 'Vehicle confirmation started',
-        ]);
-
         $result = $this->provider->confirm(
-            $workflow->booking
+            $workflow->booking,
+            $activity,
         );
 
         DB::transaction(function () use ($workflow, $result) {
@@ -42,7 +38,7 @@ class VehicleConfirmationProcessor implements WorkflowProcessor
 
             $workflow->activities()->create([
                 'booking_id' => $workflow->booking_id,
-                'type' => 'workflow_completed',
+                'type' => 'workflow_item_completed',
                 'message' => 'Vehicle confirmation completed',
             ]);
         });

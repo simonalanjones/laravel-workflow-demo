@@ -2,14 +2,17 @@
 
 @php
     $tone = match ($status) {
-        'processed' => 'bg-emerald-50 text-emerald-700 ring-emerald-600/10',
-        'failed' => 'bg-red-50 text-red-700 ring-red-600/10',
-        'processing' => 'bg-blue-50 text-blue-700 ring-blue-600/10',
-        default => 'bg-slate-100 text-slate-600 ring-slate-500/10',
+        'processed'
+            => 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300 inset-ring-green-600/20 dark:inset-ring-green-400/20',
+        'failed'
+            => 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 inset-ring-red-600/20 dark:inset-ring-red-400/20',
+        'processing'
+            => 'bg-blue-50 dark:bg-blue-500/10 text-indigo-700 dark:text-indigo-300 inset-ring-blue-600/20 dark:inset-ring-blue-400/20',
+        default
+            => 'bg-slate-50 dark:bg-white/5 text-slate-700 dark:text-gray-300 inset-ring-slate-500/10 dark:inset-ring-white/10',
     };
 @endphp
 
-<span {{ $attributes->class(['inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset', $tone]) }}>
-    <span aria-hidden="true" class="size-1.5 rounded-full bg-current"></span>
+<span {{ $attributes->class(['inline-flex items-center rounded-md px-2 py-1 text-xs font-medium inset-ring', $tone]) }}>
     {{ ucfirst($status) }}
 </span>
