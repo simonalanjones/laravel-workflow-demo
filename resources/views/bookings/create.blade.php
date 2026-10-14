@@ -29,13 +29,13 @@
     ];
 @endphp
 
-<x-layout>
+<x-layout-shell heading="Create booking" description="Choose booking items and a demo scenario to explore the workflow." active-navigation="create">
     <x-slot:title>
         New booking - Laravel Workflow Demo
     </x-slot:title>
 
     <div aria-labelledby="demo-title"
-        class="mb-8 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-gray-800 p-5 sm:p-7">
+        class="w-full max-w-6xl rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-gray-900 p-5 sm:p-7">
         <h2 id="demo-title" class="text-base/7 font-semibold text-slate-900 dark:text-white">Try a booking workflow</h2>
         <p class="mt-1 text-sm/6 text-slate-500 dark:text-gray-400">Create a demo booking and watch its steps progress.
         </p>
@@ -100,4 +100,4 @@
                 flights.</p>
         </form>
     </div>
-</x-layout>
+</x-layout-shell>

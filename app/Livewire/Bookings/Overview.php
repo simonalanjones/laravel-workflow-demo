@@ -14,10 +14,10 @@ class Overview extends Component
 
     public function render(): View
     {
-        $bookings = Booking::with('items')
+        $bookings = Booking::with(['items', 'workflows'])
             ->latest()
             ->orderByDesc('id')
-            ->paginate(5);
+            ->paginate(10);
 
         $counts = [
             'pending' => Booking::where('status', BookingStatus::Pending)->count(),

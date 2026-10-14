@@ -43,6 +43,33 @@ class Booking extends Model
         return $this->hasMany(BookingActivity::class);
     }
 
+    public function currentStep(): string
+    {
+        $activeWorkflows = $this->workflows
+            ->whereIn('status', ['processing', 'queued', 'awaiting_approval', 'failed'])
+            ->sortBy('id');
+
+        if ($activeWorkflows->isNotEmpty()) {
+            return $activeWorkflows->map(function (BookingWorkflow $workflow): string {
+                if ($workflow->type === 'operations_signoff' && $workflow->status === 'awaiting_approval') {
+                    return 'Waiting for sign-off';
+                }
+
+                return ucfirst(str_replace('_', ' ', $workflow->type)).' — '.str_replace('_', ' ', $workflow->status);
+            })->implode('; ');
+        }
+
+        if ($this->status === BookingStatus::Processed) {
+            return 'Complete';
+        }
+
+        if ($this->workflows->isNotEmpty() && $this->workflows->every(fn (BookingWorkflow $workflow): bool => $workflow->status === 'completed')) {
+            return 'Finalising booking';
+        }
+
+        return 'Waiting for the next step';
+    }
+
     public function workflows(): HasMany
     {
         return $this->hasMany(BookingWorkflow::class);

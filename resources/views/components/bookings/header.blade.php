@@ -6,9 +6,7 @@
         <div class="mb-3 flex flex-wrap items-center gap-3">
             <x-bookings.status-badge :status="$booking->status->value" />
         </div>
-        <h1 class="break-words text-2xl/7 font-bold text-slate-900 dark:text-white sm:text-3xl sm:tracking-tight">Booking
-            details</h1>
-        <p class="mt-2 break-all text-sm text-slate-500 dark:text-gray-400">Reference: {{ $booking->reference }}</p>
+        <h2 class="sr-only">Booking summary</h2>
         <div class="mt-1 flex flex-col sm:mt-0 sm:flex-row sm:flex-wrap sm:gap-x-6">
             <div class="mt-2 flex min-w-0 items-center text-sm text-slate-500 dark:text-gray-400">
                 <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
@@ -41,5 +39,6 @@
                         datetime="{{ $booking->created_at->toIso8601String() }}">{{ $booking->created_at->format('d M Y, H:i') }}</time></span>
             </div>
         </div>
+        <p class="mt-3 break-all text-xs leading-5 text-slate-500 dark:text-gray-400">Reference: {{ $booking->reference }}</p>
     </div>
 </header>

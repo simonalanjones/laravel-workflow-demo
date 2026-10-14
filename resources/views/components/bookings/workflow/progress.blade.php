@@ -119,8 +119,4 @@
                 this booking.</p>
         @endforelse
     </div>
-    @if ($progress['taskCount'] > 0)
-        <p class="border-t border-slate-100 dark:border-white/5 px-7 py-3 text-xs text-slate-500 dark:text-gray-400">
-            Select a step to view its activity.</p>
-    @endif
 </section>

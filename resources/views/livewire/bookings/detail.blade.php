@@ -1,11 +1,5 @@
-<div wire:poll.1s x-data="{ showEventTypes: false, showFullHistory: false }">
-    <nav aria-label="Booking navigation" class="mb-9 flex flex-wrap items-center justify-between gap-3 text-sm">
-        <a href="/"
-            class="inline-flex items-center gap-2 rounded-sm text-slate-500 dark:text-gray-400 transition hover:text-slate-900 dark:hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-500">
-            <x-icons.arrow-left class="size-4" />
-            Bookings
-        </a>
-    </nav>
+<div wire:poll.1s x-data="{ showEventTypes: false, showFullHistory: false }"
+    class="rounded-xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-8 dark:border-white/10 dark:bg-gray-900">
 
     <x-bookings.header :booking="$booking" />
 
