@@ -44,9 +44,4 @@ class DashboardController extends Controller
     {
         return view('bookings.create');
     }
-
-    public function test(): View
-    {
-        return view('bookings.test');
-    }
 }

@@ -27,7 +27,3 @@ Route::post('/demo/bookings/failing', [
 Route::post('/demo/bookings/random-failure', [
     DemoBookingController::class, 'randomFailure',
 ]);
-
-Route::get('/test', [
-    DashboardController::class, 'test',
-]);
