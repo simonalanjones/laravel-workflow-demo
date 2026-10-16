@@ -1,4 +1,8 @@
-@props(['status'])
+@props([
+    'status',
+    'size' => 'small',
+    'dot' => false,
+])
 
 @php
     $tone = match ($status) {
@@ -11,8 +15,23 @@
         default
             => 'bg-slate-50 dark:bg-gray-700/50 text-slate-700 dark:text-gray-400 inset-ring-slate-500/10 dark:inset-ring-gray-500/20',
     };
+
+    $sizing = match ($size) {
+        'small' => 'gap-1.5 text-xs font-medium px-2 py-1',
+        'medium' => 'gap-2 text-sm px-3 py-1.5',
+    };
+
+    $dotSizing = match ($size) {
+        'small' => 'size-1.5',
+        'medium' => 'size-2',
+    };
 @endphp
 
-<span {{ $attributes->class(['inline-flex items-center rounded-md px-2 py-1 text-xs font-medium inset-ring', $tone]) }}>
+<span {{ $attributes->class([
+    'inline-flex items-center rounded-md inset-ring', $tone, $sizing
+    ]) }}>
+    @if ($dot)
+        <span aria-hidden="true" class="shrink-0 rounded-full bg-current {{ $dotSizing }}"></span>
+    @endif
     {{ ucfirst($status) }}
 </span>

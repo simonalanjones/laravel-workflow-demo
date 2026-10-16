@@ -1,77 +1,84 @@
 <?php
 
-namespace Tests\Feature;
-
-use App\Livewire\Bookings\Overview;
 use App\Models\Booking;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
-use PHPUnit\Framework\Attributes\TestWith;
-use Tests\TestCase;
 
-class BookingOverviewTest extends TestCase
+uses(RefreshDatabase::class);
+
+test('overview displays the current workflow step', function (string $bookingStatus, string $type, string $workflowStatus, string $label): void {
+    $booking = createBookingForBookingOverview($bookingStatus);
+    $booking->workflows()->create(['type' => $type, 'status' => $workflowStatus]);
+
+    Livewire::test('bookings.overview')
+        ->assertSee('Current step')
+        ->assertSee($label);
+})->with([
+    ['processing', 'operations_signoff', 'awaiting_approval', 'Waiting for sign-off'],
+    ['processing', 'flight_confirmation', 'queued', 'Flight confirmation — queued'],
+    ['processing', 'property_confirmation', 'processing', 'Property confirmation — processing'],
+    ['failed', 'vehicle_confirmation', 'failed', 'Vehicle confirmation — failed'],
+    ['processed', 'operations_signoff', 'completed', 'Complete'],
+    ['processing', 'flight_confirmation', 'completed', 'Finalising booking'],
+    ['pending', 'flight_confirmation', 'pending', 'Waiting for the next step'],
+]);
+
+test('overview shows parallel steps without pending signoff or completed steps', function (): void {
+    $booking = createBookingForBookingOverview('processing');
+    $booking->workflows()->createMany([
+        ['type' => 'property_confirmation', 'status' => 'processing'],
+        ['type' => 'flight_confirmation', 'status' => 'queued'],
+        ['type' => 'vehicle_confirmation', 'status' => 'completed'],
+        ['type' => 'operations_signoff', 'status' => 'pending'],
+    ]);
+
+    Livewire::test('bookings.overview')
+        ->assertSee('Property confirmation — processing; Flight confirmation — queued')
+        ->assertDontSee('Vehicle confirmation')
+        ->assertDontSee('Waiting for sign-off');
+});
+
+test('overview refreshes after signoff is completed', function (): void {
+    $booking = createBookingForBookingOverview('processing');
+    $workflow = $booking->workflows()->create(['type' => 'operations_signoff', 'status' => 'awaiting_approval']);
+    $component = Livewire::test('bookings.overview')->assertSee('Waiting for sign-off')
+        ->assertSet('counts', ['pending' => 0, 'processing' => 1, 'processed' => 0, 'failed' => 0]);
+
+    $workflow->update(['status' => 'completed']);
+    $booking->update(['status' => 'processed']);
+
+    $component->call('$refresh')->assertSee('Complete')->assertDontSee('Waiting for sign-off')
+        ->assertSet('counts', ['pending' => 0, 'processing' => 0, 'processed' => 1, 'failed' => 0]);
+});
+
+test('booking without workflows shows that it is waiting', function (): void {
+    createBookingForBookingOverview('pending');
+
+    Livewire::test('bookings.overview')->assertSee('Waiting for the next step');
+});
+
+test('overview paginates bookings newest first with a stable order', function (): void {
+    $this->freezeTime();
+
+    foreach (range(1, 11) as $number) {
+        createBookingForBookingOverview('pending', 'PAGINATION-'.str_pad((string) $number, 2, '0', STR_PAD_LEFT));
+    }
+
+    Livewire::test('bookings.overview')
+        ->assertSeeInOrder(['PAGINATION-11', 'PAGINATION-10', 'PAGINATION-02'])
+        ->assertDontSee('PAGINATION-01')
+        ->call('setPage', 2)
+        ->assertSee('PAGINATION-01')
+        ->assertDontSee('PAGINATION-02')
+        ->assertDontSee('PAGINATION-11');
+});
+
+function createBookingForBookingOverview(string $status, string $reference = 'OVERVIEW-001'): Booking
 {
-    use RefreshDatabase;
-
-    #[TestWith(['processing', 'operations_signoff', 'awaiting_approval', 'Waiting for sign-off'])]
-    #[TestWith(['processing', 'flight_confirmation', 'queued', 'Flight confirmation — queued'])]
-    #[TestWith(['processing', 'property_confirmation', 'processing', 'Property confirmation — processing'])]
-    #[TestWith(['failed', 'vehicle_confirmation', 'failed', 'Vehicle confirmation — failed'])]
-    #[TestWith(['processed', 'operations_signoff', 'completed', 'Complete'])]
-    #[TestWith(['processing', 'flight_confirmation', 'completed', 'Finalising booking'])]
-    #[TestWith(['pending', 'flight_confirmation', 'pending', 'Waiting for the next step'])]
-    public function test_overview_displays_the_current_workflow_step(string $bookingStatus, string $type, string $workflowStatus, string $label): void
-    {
-        $booking = $this->createBooking($bookingStatus);
-        $booking->workflows()->create(['type' => $type, 'status' => $workflowStatus]);
-
-        Livewire::test(Overview::class)
-            ->assertSee('Current step')
-            ->assertSee($label);
-    }
-
-    public function test_overview_shows_parallel_steps_without_pending_signoff_or_completed_steps(): void
-    {
-        $booking = $this->createBooking('processing');
-        $booking->workflows()->createMany([
-            ['type' => 'property_confirmation', 'status' => 'processing'],
-            ['type' => 'flight_confirmation', 'status' => 'queued'],
-            ['type' => 'vehicle_confirmation', 'status' => 'completed'],
-            ['type' => 'operations_signoff', 'status' => 'pending'],
-        ]);
-
-        Livewire::test(Overview::class)
-            ->assertSee('Property confirmation — processing; Flight confirmation — queued')
-            ->assertDontSee('Vehicle confirmation')
-            ->assertDontSee('Waiting for sign-off');
-    }
-
-    public function test_overview_refreshes_after_signoff_is_completed(): void
-    {
-        $booking = $this->createBooking('processing');
-        $workflow = $booking->workflows()->create(['type' => 'operations_signoff', 'status' => 'awaiting_approval']);
-        $component = Livewire::test(Overview::class)->assertSee('Waiting for sign-off');
-
-        $workflow->update(['status' => 'completed']);
-        $booking->update(['status' => 'processed']);
-
-        $component->call('$refresh')->assertSee('Complete')->assertDontSee('Waiting for sign-off');
-    }
-
-    public function test_booking_without_workflows_shows_that_it_is_waiting(): void
-    {
-        $this->createBooking('pending');
-
-        Livewire::test(Overview::class)->assertSee('Waiting for the next step');
-    }
-
-    private function createBooking(string $status): Booking
-    {
-        return Booking::create([
-            'reference' => 'OVERVIEW-001',
-            'customer_name' => 'Test Customer',
-            'customer_email' => 'test@example.com',
-            'status' => $status,
-        ]);
-    }
+    return Booking::create([
+        'reference' => $reference,
+        'customer_name' => 'Test Customer',
+        'customer_email' => 'test@example.com',
+        'status' => $status,
+    ]);
 }

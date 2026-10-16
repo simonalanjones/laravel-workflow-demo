@@ -2,29 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\BookingStatus;
 use App\Models\Booking;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
     public function index(): View
     {
-        $bookings = Booking::with('items')
-            ->latest()
-            ->get();
-
-        $counts = [
-            'pending' => $bookings->where('status', BookingStatus::Pending)->count(),
-            'processing' => $bookings->where('status', BookingStatus::Processing)->count(),
-            'processed' => $bookings->where('status', BookingStatus::Processed)->count(),
-            'failed' => $bookings->where('status', BookingStatus::Failed)->count(),
-        ];
-
-        return view('bookings.index', [
-            'bookings' => $bookings,
-            'counts' => $counts,
-        ]);
+        return view('bookings.index');
     }
 
     public function show(Booking $booking): View
@@ -40,8 +26,10 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('bookings.create');
+        return view('bookings.create', [
+            'isLostResponseScenario' => $request->query('scenario') === 'lost-response',
+        ]);
     }
 }

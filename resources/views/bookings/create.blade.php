@@ -24,12 +24,12 @@
             'label' => 'Simulate lost provider response',
             'description' =>
                 'Each provider saves its first confirmation but simulates a failed response. A retry retrieves that same confirmation without booking again. Signoff is unaffected.',
-            'default' => false,
+            'default' => $isLostResponseScenario,
         ],
     ];
 @endphp
 
-<x-layout-shell heading="Create booking" description="Choose booking items and a demo scenario to explore the workflow." active-navigation="create">
+<x-layout heading="Create booking" description="Choose booking items and a demo scenario to explore the workflow." active-navigation="create">
     <x-slot:title>
         New booking - Laravel Workflow Demo
     </x-slot:title>
@@ -39,6 +39,13 @@
         <h2 id="demo-title" class="text-base/7 font-semibold text-slate-900 dark:text-white">Try a booking workflow</h2>
         <p class="mt-1 text-sm/6 text-slate-500 dark:text-gray-400">Create a demo booking and watch its steps progress.
         </p>
+
+        @if ($isLostResponseScenario)
+            <aside aria-labelledby="scenario-title" class="mt-6 rounded-lg border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-400/20 dark:bg-indigo-400/10">
+                <h3 id="scenario-title" class="text-sm font-semibold text-indigo-900 dark:text-indigo-200">Lost response scenario</h3>
+                <p class="mt-2 text-sm/6 text-indigo-800 dark:text-indigo-200">The demo provider completes the operation, but its response is lost. Choose your booking items, leave “Simulate lost provider response” checked, and select “Create successful booking”. Once the steps fail with an unknown outcome, retry them to recover the saved confirmations without booking again.</p>
+            </aside>
+        @endif
 
         <form method="POST" action="/demo/bookings/successful" class="mt-8 grid gap-6">
             @csrf
@@ -84,20 +91,27 @@
                     Create successful booking
                 </x-forms.button>
 
-                <x-forms.button type="submit" variant="secondary" class="w-full sm:w-auto"
+                <x-forms.button type="submit" variant="secondary" class="w-full disabled:cursor-not-allowed sm:w-auto"
+                    :disabled="$isLostResponseScenario" aria-describedby="scenario-actions-description"
                     formaction="/demo/bookings/failing">
                     Create failing booking
                 </x-forms.button>
 
-                <x-forms.button type="submit" variant="secondary" class="w-full sm:w-auto"
+                <x-forms.button type="submit" variant="secondary" class="w-full disabled:cursor-not-allowed sm:w-auto"
+                    :disabled="$isLostResponseScenario" aria-describedby="scenario-actions-description"
                     formaction="/demo/bookings/random-failure">
                     Create random-failure booking
                 </x-forms.button>
 
             </div>
-            <p class="text-sm/6 text-slate-500 dark:text-gray-400">Random failures can affect accommodation, flights, or
+            @if ($isLostResponseScenario)
+                <p id="scenario-actions-description" class="text-sm/6 text-slate-500 dark:text-gray-400">Failing and random-failure bookings are disabled to keep this example focused on recovering a lost response.
+                    <a href="{{ route('bookings.create') }}" class="font-medium text-indigo-600 underline underline-offset-4 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Open the standard form</a> to explore other scenarios.</p>
+            @else
+            <p id="scenario-actions-description" class="text-sm/6 text-slate-500 dark:text-gray-400">Random failures can affect accommodation, flights, or
                 car hire independently on each attempt. Signoff is excluded. The failing-booking scenario always fails
                 flights.</p>
+            @endif
         </form>
     </div>
-</x-layout-shell>
+</x-layout>

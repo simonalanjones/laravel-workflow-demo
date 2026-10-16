@@ -1,14 +1,11 @@
 @props(['booking'])
 
 <header
-    {{ $attributes->class('mb-8 border-b border-slate-200 dark:border-white/10 pb-8 lg:flex lg:items-center lg:justify-between') }}>
+    {{ $attributes->class('mb-8') }}>
     <div class="min-w-0 flex-1">
-        <div class="mb-3 flex flex-wrap items-center gap-3">
-            <x-bookings.status-badge :status="$booking->status->value" />
-        </div>
         <h2 class="sr-only">Booking summary</h2>
-        <div class="mt-1 flex flex-col sm:mt-0 sm:flex-row sm:flex-wrap sm:gap-x-6">
-            <div class="mt-2 flex min-w-0 items-center text-sm text-slate-500 dark:text-gray-400">
+        <div class="flex flex-wrap items-center gap-3">
+            <div class="flex min-w-0 items-center text-sm font-semibold text-slate-900 dark:text-white">
                 <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
                     class="mr-1.5 size-5 shrink-0 text-slate-400 dark:text-gray-500">
                     <path
@@ -18,7 +15,10 @@
                 <span class="sr-only">Customer: </span>
                 <span class="break-words">{{ $booking->customer_name }}</span>
             </div>
-            <div class="mt-2 flex min-w-0 items-center text-sm text-slate-500 dark:text-gray-400">
+            <x-bookings.status-badge :status="$booking->status->value" size="medium" />
+        </div>
+        <div class="mt-3 flex flex-col gap-y-2 sm:flex-row sm:flex-wrap sm:gap-x-6">
+            <div class="flex min-w-0 items-center text-sm text-slate-500 dark:text-gray-400">
                 <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
                     class="mr-1.5 size-5 shrink-0 text-slate-400 dark:text-gray-500">
                     <path d="M3 4a2 2 0 0 0-2 2v.161l8.441 4.221a1.25 1.25 0 0 0 1.118 0L19 6.162V6a2 2 0 0 0-2-2H3Z" />
@@ -28,7 +28,7 @@
                 <span class="sr-only">Email: </span>
                 <span class="break-all">{{ $booking->customer_email }}</span>
             </div>
-            <div class="mt-2 flex items-center text-sm text-slate-500 dark:text-gray-400">
+            <div class="flex items-center text-sm text-slate-500 dark:text-gray-400">
                 <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
                     class="mr-1.5 size-5 shrink-0 text-slate-400 dark:text-gray-500">
                     <path
@@ -39,6 +39,8 @@
                         datetime="{{ $booking->created_at->toIso8601String() }}">{{ $booking->created_at->format('d M Y, H:i') }}</time></span>
             </div>
         </div>
-        <p class="mt-3 break-all text-xs leading-5 text-slate-500 dark:text-gray-400">Reference: {{ $booking->reference }}</p>
+        <p class="mt-2 max-w-full break-all font-mono text-xs leading-5 text-slate-400 dark:text-gray-500">
+            <span class="sr-only">Booking reference: </span>{{ $booking->reference }}
+        </p>
     </div>
 </header>

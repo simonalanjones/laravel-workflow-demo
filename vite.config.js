@@ -7,6 +7,7 @@ export default defineConfig({
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.js'],
+            assets: ['resources/images/logos/*.svg'],
             refresh: true,
             fonts: [
                 bunny('Inter', {

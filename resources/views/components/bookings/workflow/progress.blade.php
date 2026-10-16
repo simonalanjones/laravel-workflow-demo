@@ -1,4 +1,8 @@
-@props(['workflows', 'progress', 'selectedWorkflowId' => null])
+@props([
+    'workflows',
+    'progress',
+    'selectedWorkflowId' => null
+])
 
 @php
     $awaitingApproval = $progress['failedTasks']->isEmpty() && $progress['approvalTask'] !== null;
@@ -113,10 +117,13 @@
 
     <div id="workflow-tasks" class="scroll-mt-6 border-t border-slate-100 dark:border-white/5">
         @forelse ($workflows as $workflow)
-            <x-bookings.workflow.row :workflow="$workflow" :progress="$progress" :position="$loop->iteration" :selected-workflow-id="$selectedWorkflowId" />
+            <x-bookings.workflow.row
+                :workflow="$workflow"
+                :progress="$progress"
+                :position="$loop->iteration"
+                :selected-workflow-id="$selectedWorkflowId" />
         @empty
-            <p class="px-7 py-6 text-sm text-slate-500 dark:text-gray-400 sm:px-9">No workflows have been created for
-                this booking.</p>
+            <p class="px-7 py-6 text-sm text-slate-500 dark:text-gray-400 sm:px-9">No workflows have been created for this booking.</p>
         @endforelse
     </div>
 </section>

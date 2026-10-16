@@ -16,8 +16,7 @@
             'shadow-[inset_3px_0_0] shadow-amber-500 dark:shadow-amber-400' => ! $hasFailed && $awaitingSignoff,
         ])>
             <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <span class="text-lg font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white sm:text-xl">£{{ number_format($booking->total(), 2) }}</span>
-                <x-bookings.status-badge :status="$booking->status->value" />
+                <span class="text-lg font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white sm:text-lg">£{{ number_format($booking->total(), 2) }}</span>
             </div>
             <p class="mt-1.5 text-xs leading-5 {{ $hasFailed ? 'font-medium text-red-700 dark:text-red-300' : ($awaitingSignoff ? 'font-medium text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-gray-400') }}">
                 <span class="sr-only">Current step: </span>{{ $currentStep }}
