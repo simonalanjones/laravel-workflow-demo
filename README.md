@@ -69,6 +69,8 @@ For frontend development, run `npm run dev` instead of rebuilding assets after e
 
 Open the bookings page on your Herd site, create a booking, then open its details to follow the workflow.
 
+![Booking details showing workflow progress and activity history](screenshots/booking_detail_dark.png)
+
 Start with a successful booking, then try the failure and delay controls:
 
 | Try this | What to look for |
