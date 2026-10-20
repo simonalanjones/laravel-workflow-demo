@@ -6,6 +6,8 @@ Watch each step update live, approve bookings that need operations signoff, and 
 
 Built with Laravel 13, Livewire 4 and PHP 8.4, this learning project demonstrates queues, workflow dependencies, retries and idempotent provider requests.
 
+![Laravel workflow demo landing page showing an example booking workflow and lost-response scenario](screenshots/app_landing_page.png)
+
 ## What you can explore
 
 - **Background processing** — a queue worker confirms the different parts of a booking.
@@ -107,3 +109,7 @@ php artisan test --compact
 This is a learning application, not a production booking platform. Payments and cancellation are not implemented.
 
 Scheduled recovery checks pending work and recalculates unfinished booking statuses. It does not automatically retry failed steps, approve operations signoff, or guarantee exactly-once execution.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
