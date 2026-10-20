@@ -2,7 +2,7 @@
 
 use App\Exceptions\ProviderResponseLostException;
 use App\Http\Controllers\DemoProviderController;
-use App\Jobs\ProcessBookingWorkflowJob;
+use App\Jobs\ProcessBookingWorkflowStepJob;
 use App\Models\Booking;
 use App\Models\DemoProviderOperation;
 use App\Models\ProviderRequest;
@@ -99,13 +99,13 @@ test('received failure is saved only on client side', function (): void {
 
 function createBookingForClientProviderRequest(string $item): Booking
 {
-    Queue::fake([ProcessBookingWorkflowJob::class]);
+    Queue::fake([ProcessBookingWorkflowStepJob::class]);
     test()->post('/demo/bookings/successful', [
         'item_types' => [$item],
         'requires_signoff' => false,
         'simulate_lost_response' => true,
     ])->assertRedirect();
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, 1);
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, 1);
 
     return Booking::sole();
 }

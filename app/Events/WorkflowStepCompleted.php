@@ -2,15 +2,15 @@
 
 namespace App\Events;
 
-use App\Models\BookingWorkflow;
+use App\Models\BookingWorkflowStep;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class WorkflowItemCompleted
+class WorkflowStepCompleted
 {
     use Dispatchable, SerializesModels;
 
     public function __construct(
-        public BookingWorkflow $workflow
+        public BookingWorkflowStep $workflowStep
     ) {}
 }

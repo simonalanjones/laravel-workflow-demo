@@ -1,7 +1,7 @@
 @props([
-    'workflows',
+    'workflowSteps',
     'progress',
-    'selectedWorkflowId' => null
+    'selectedWorkflowStepId' => null
 ])
 
 @php
@@ -15,7 +15,7 @@
             <h2 id="workflows-title"
                 class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-700 dark:text-gray-300">Workflow
                 progress</h2>
-            <x-bookings.workflow.progress-segments :workflows="$workflows" :completed-count="$progress['completedCount']" />
+            <x-bookings.workflow.progress-segments :workflow-steps="$workflowSteps" :completed-count="$progress['completedCount']" />
         </div>
 
         @if ($progress['isComplete'])
@@ -63,7 +63,7 @@
                         </div>
                         @if ($progress['failedTasks']->count() === 1)
                             <x-forms.button variant="danger"
-                                wire:click="retryWorkflow({{ $progress['failedTasks']->first()->id }})"
+                                wire:click="retryWorkflowStep({{ $progress['failedTasks']->first()->id }})"
                                 wire:loading.attr="disabled" class="mt-4">
                                 Retry {{ str_replace('_', ' ', $progress['failedTasks']->first()->type) }}
                             </x-forms.button>
@@ -93,7 +93,7 @@
                             <p>{{ $progress['summaryDescription'] }}</p>
                         </div>
                         <x-forms.button variant="warning"
-                            wire:click="approveWorkflow({{ $progress['approvalTask']->id }})"
+                            wire:click="approveWorkflowStep({{ $progress['approvalTask']->id }})"
                             wire:loading.attr="disabled" class="mt-4">
                             Approve signoff
                         </x-forms.button>
@@ -116,14 +116,14 @@
     </div>
 
     <div id="workflow-tasks" class="scroll-mt-6 border-t border-slate-100 dark:border-white/5">
-        @forelse ($workflows as $workflow)
+        @forelse ($workflowSteps as $workflowStep)
             <x-bookings.workflow.row
-                :workflow="$workflow"
+                :workflow-step="$workflowStep"
                 :progress="$progress"
                 :position="$loop->iteration"
-                :selected-workflow-id="$selectedWorkflowId" />
+                :selected-workflow-step-id="$selectedWorkflowStepId" />
         @empty
-            <p class="px-7 py-6 text-sm text-slate-500 dark:text-gray-400 sm:px-9">No workflows have been created for this booking.</p>
+            <p class="px-7 py-6 text-sm text-slate-500 dark:text-gray-400 sm:px-9">No workflow steps have been created for this booking.</p>
         @endforelse
     </div>
 </section>

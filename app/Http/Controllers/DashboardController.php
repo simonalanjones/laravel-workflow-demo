@@ -17,7 +17,7 @@ class DashboardController extends Controller
     {
         $booking->load([
             'items',
-            'workflows',
+            'workflowSteps',
             'activities' => fn ($query) => $query->oldest(),
         ]);
 

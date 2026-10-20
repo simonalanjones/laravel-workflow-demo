@@ -14,9 +14,9 @@ Route::get('/bookings/create', [
     DashboardController::class, 'create',
 ])->name('bookings.create');
 
-Route::get('/bookings/{booking}', [
+Route::get('/bookings/{booking:public_id}', [
     DashboardController::class, 'show',
-]);
+])->name('bookings.show');
 
 Route::post('/demo/bookings/successful', [
     DemoBookingController::class, 'successful',

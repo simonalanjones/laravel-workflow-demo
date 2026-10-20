@@ -1,6 +1,6 @@
 <?php
 
-use App\Jobs\ProcessBookingWorkflowJob;
+use App\Jobs\ProcessBookingWorkflowStepJob;
 use App\Models\Booking;
 use App\Services\Workflows\OperationsSignoffProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -62,18 +62,18 @@ test('guaranteed failure scenario still only fails flights', function (): void {
 });
 
 test('signoff is not subject to random failure', function (): void {
-    Queue::fake([ProcessBookingWorkflowJob::class]);
+    Queue::fake([ProcessBookingWorkflowStepJob::class]);
     Lottery::alwaysWin();
     $this->post('/demo/bookings/random-failure', [
         'item_types' => ['car_hire'],
         'requires_signoff' => true,
     ])->assertRedirect();
     $booking = Booking::sole();
-    $booking->workflows()->where('type', 'vehicle_confirmation')->update(['status' => 'completed']);
-    $signoff = $booking->workflows()->where('type', 'operations_signoff')->sole();
+    $booking->workflowSteps()->where('type', 'vehicle_confirmation')->update(['status' => 'completed']);
+    $signoff = $booking->workflowSteps()->where('type', 'operations_signoff')->sole();
 
     app(OperationsSignoffProcessor::class)->process($signoff);
 
-    $this->assertDatabaseHas('booking_workflows', ['id' => $signoff->id, 'status' => 'awaiting_approval']);
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, 1);
+    $this->assertDatabaseHas('booking_workflow_steps', ['id' => $signoff->id, 'status' => 'awaiting_approval']);
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, 1);
 });

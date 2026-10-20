@@ -3,11 +3,15 @@
 namespace App\Models;
 
 use App\Enums\BookingStatus;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Booking extends Model
 {
+    use HasUuids;
+
     protected $fillable = [
         'reference',
         'customer_name',
@@ -16,6 +20,19 @@ class Booking extends Model
         'simulate_network_delay',
         'simulate_lost_response',
     ];
+
+    /**
+     * @return array<int, string>
+     */
+    public function uniqueIds(): array
+    {
+        return ['public_id'];
+    }
+
+    public function newUniqueId(): string
+    {
+        return (string) Str::uuid();
+    }
 
     protected function casts(): array
     {
@@ -31,6 +48,16 @@ class Booking extends Model
         return $this->hasMany(BookingItem::class);
     }
 
+    public function activities(): HasMany
+    {
+        return $this->hasMany(BookingActivity::class);
+    }
+
+    public function workflowSteps(): HasMany
+    {
+        return $this->hasMany(BookingWorkflowStep::class);
+    }
+
     public function total(): float
     {
         return $this->items->sum(function (BookingItem $item) {
@@ -38,24 +65,19 @@ class Booking extends Model
         });
     }
 
-    public function activities(): HasMany
-    {
-        return $this->hasMany(BookingActivity::class);
-    }
-
     public function currentStep(): string
     {
-        $activeWorkflows = $this->workflows
+        $activeWorkflows = $this->workflowSteps
             ->whereIn('status', ['processing', 'queued', 'awaiting_approval', 'failed'])
             ->sortBy('id');
 
         if ($activeWorkflows->isNotEmpty()) {
-            return $activeWorkflows->map(function (BookingWorkflow $workflow): string {
-                if ($workflow->type === 'operations_signoff' && $workflow->status === 'awaiting_approval') {
+            return $activeWorkflows->map(function (BookingWorkflowStep $workflowStep): string {
+                if ($workflowStep->type === 'operations_signoff' && $workflowStep->status === 'awaiting_approval') {
                     return 'Waiting for sign-off';
                 }
 
-                return ucfirst(str_replace('_', ' ', $workflow->type)).' — '.str_replace('_', ' ', $workflow->status);
+                return ucfirst(str_replace('_', ' ', $workflowStep->type)).' — '.str_replace('_', ' ', $workflowStep->status);
             })->implode('; ');
         }
 
@@ -63,15 +85,10 @@ class Booking extends Model
             return 'Complete';
         }
 
-        if ($this->workflows->isNotEmpty() && $this->workflows->every(fn (BookingWorkflow $workflow): bool => $workflow->status === 'completed')) {
+        if ($this->workflowSteps->isNotEmpty() && $this->workflowSteps->every(fn (BookingWorkflowStep $workflowStep): bool => $workflowStep->status === 'completed')) {
             return 'Finalising booking';
         }
 
         return 'Waiting for the next step';
-    }
-
-    public function workflows(): HasMany
-    {
-        return $this->hasMany(BookingWorkflow::class);
     }
 }

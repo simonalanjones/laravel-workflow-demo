@@ -9,7 +9,7 @@ class BookingStateService
 {
     public function recalculate(Booking $booking): void
     {
-        $hasFailedWorkflow = $booking->workflows()
+        $hasFailedWorkflow = $booking->workflowSteps()
             ->where('status', 'failed')
             ->exists();
 
@@ -21,7 +21,7 @@ class BookingStateService
             return;
         }
 
-        $hasIncompleteWorkflow = $booking->workflows()
+        $hasIncompleteWorkflow = $booking->workflowSteps()
             ->where('status', '!=', 'completed')
             ->exists();
 
@@ -43,7 +43,7 @@ class BookingStateService
 
         $booking->activities()->create([
             'type' => 'booking_processed',
-            'message' => 'All booking workflows completed',
+            'message' => 'All booking workflow steps completed',
         ]);
     }
 }

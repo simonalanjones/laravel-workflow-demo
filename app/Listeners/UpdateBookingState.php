@@ -2,7 +2,7 @@
 
 namespace App\Listeners;
 
-use App\Events\WorkflowItemCompleted;
+use App\Events\WorkflowStepCompleted;
 use App\Services\BookingStateService;
 use App\Services\Workflows\WorkflowCoordinator;
 
@@ -13,14 +13,14 @@ class UpdateBookingState
         private WorkflowCoordinator $workflowCoordinator
     ) {}
 
-    public function handle(WorkflowItemCompleted $event): void
+    public function handle(WorkflowStepCompleted $event): void
     {
-        $booking = $event->workflow->booking;
+        $booking = $event->workflowStep->booking;
 
-        $booking->load('workflows');
+        $booking->load('workflowSteps');
 
-        foreach ($booking->workflows as $workflow) {
-            $this->workflowCoordinator->startIfReady($workflow);
+        foreach ($booking->workflowSteps as $workflowStep) {
+            $this->workflowCoordinator->queueIfReady($workflowStep);
         }
 
         $this->bookingStateService->recalculate($booking);

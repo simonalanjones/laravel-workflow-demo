@@ -1,7 +1,7 @@
 <?php
 
 use App\Enums\BookingStatus;
-use App\Jobs\ProcessBookingWorkflowJob;
+use App\Jobs\ProcessBookingWorkflowStepJob;
 use App\Models\Booking;
 use App\Services\Workflows\WorkflowProcessorResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Queue;
 uses(RefreshDatabase::class);
 
 test('demo can omit signoff', function (string $scenario): void {
-    Queue::fake([ProcessBookingWorkflowJob::class]);
+    Queue::fake([ProcessBookingWorkflowStepJob::class]);
     $this->withoutVite();
 
     $this->post('/demo/bookings/'.$scenario, [
@@ -20,9 +20,9 @@ test('demo can omit signoff', function (string $scenario): void {
     ])->assertRedirect();
 
     $booking = Booking::sole();
-    $this->assertSame(['vehicle_confirmation'], $booking->workflows()->pluck('type')->all());
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, 1);
-    $this->get('/bookings/'.$booking->id)->assertDontSee('Operations signoff')->assertDontSee('Approve signoff');
+    $this->assertSame(['vehicle_confirmation'], $booking->workflowSteps()->pluck('type')->all());
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, 1);
+    $this->get('/bookings/'.$booking->public_id)->assertOk()->assertDontSee('Operations signoff')->assertDontSee('Approve signoff');
 })->with([
     ['successful'],
     ['failing'],
@@ -30,7 +30,7 @@ test('demo can omit signoff', function (string $scenario): void {
 ]);
 
 test('api booking without signoff completes after all selected providers confirm', function (array $types): void {
-    Queue::fake([ProcessBookingWorkflowJob::class]);
+    Queue::fake([ProcessBookingWorkflowStepJob::class]);
     Http::preventStrayRequests();
     Http::fake([
         url('/api/demo/providers/property/confirm') => Http::response(['provider_reference' => 'PROPERTY-123']),
@@ -49,12 +49,12 @@ test('api booking without signoff completes after all selected providers confirm
             'quantity' => 1,
             'unit_price' => 100,
         ], $types),
-    ])->assertCreated()->assertJsonCount(count($types), 'workflows');
+    ])->assertCreated()->assertJsonCount(count($types), 'workflow_steps');
 
     $booking = Booking::sole();
-    foreach ($booking->workflows as $workflow) {
+    foreach ($booking->workflowSteps as $workflowStep) {
         $this->assertNotSame(BookingStatus::Processed, $booking->fresh()->status);
-        app(WorkflowProcessorResolver::class)->resolve($workflow)->process($workflow);
+        app(WorkflowProcessorResolver::class)->resolve($workflowStep)->process($workflowStep);
     }
 
     $this->assertSame(BookingStatus::Processed, $booking->fresh()->status);
@@ -63,8 +63,8 @@ test('api booking without signoff completes after all selected providers confirm
         'type' => 'booking_processed',
     ]);
     Http::assertSentCount(count($types));
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, count($types));
-    Queue::assertNotPushed(ProcessBookingWorkflowJob::class, fn (ProcessBookingWorkflowJob $job): bool => $job->workflow->type === 'operations_signoff');
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, count($types));
+    Queue::assertNotPushed(ProcessBookingWorkflowStepJob::class, fn (ProcessBookingWorkflowStepJob $job): bool => $job->workflowStep->type === 'operations_signoff');
 })->with([
     [['accommodation']],
     [['flight']],
@@ -76,15 +76,15 @@ test('api booking without signoff completes after all selected providers confirm
 ]);
 
 test('explicit signoff selection creates the approval step', function (): void {
-    Queue::fake([ProcessBookingWorkflowJob::class]);
+    Queue::fake([ProcessBookingWorkflowStepJob::class]);
 
     $this->post('/demo/bookings/successful', [
         'item_types' => ['car_hire'],
         'requires_signoff' => '1',
     ])->assertRedirect();
 
-    $this->assertDatabaseHas('booking_workflows', ['type' => 'operations_signoff', 'status' => 'pending']);
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, 1);
+    $this->assertDatabaseHas('booking_workflow_steps', ['type' => 'operations_signoff', 'status' => 'pending']);
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, 1);
 });
 
 test('rejects invalid signoff option', function (string $endpoint): void {

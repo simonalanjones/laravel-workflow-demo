@@ -14,7 +14,7 @@ class ProviderRequest extends Model
     use HasFactory;
 
     protected $fillable = [
-        'booking_workflow_id',
+        'booking_workflow_step_id',
         'provider',
         'operation',
         'idempotency_key',
@@ -36,8 +36,8 @@ class ProviderRequest extends Model
         return $this->hasMany(ProviderRequestAttempt::class);
     }
 
-    public function workflow(): BelongsTo
+    public function workflowStep(): BelongsTo
     {
-        return $this->belongsTo(BookingWorkflow::class, 'booking_workflow_id');
+        return $this->belongsTo(BookingWorkflowStep::class, 'booking_workflow_step_id');
     }
 }

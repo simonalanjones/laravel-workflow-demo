@@ -1,6 +1,6 @@
 <?php
 
-use App\Jobs\ProcessBookingWorkflowJob;
+use App\Jobs\ProcessBookingWorkflowStepJob;
 use App\Livewire\Bookings\Detail;
 use App\Models\Booking;
 use App\Models\ProviderRequest;
@@ -18,10 +18,10 @@ test('retry preserves each response and links details to its own activity', func
     Http::fake([url('/api/demo/providers/flights/confirm') => Http::sequence()
         ->push('<script>failed</script>', 503)
         ->push(['status' => 'confirmed', 'provider_reference' => 'RECOVERED-123'])]);
-    $workflow = $booking->workflows()->sole();
+    $workflowStep = $booking->workflowSteps()->sole();
 
     try {
-        app()->call([new ProcessBookingWorkflowJob($workflow), 'handle']);
+        app()->call([new ProcessBookingWorkflowStepJob($workflowStep), 'handle']);
         $this->fail('First attempt should fail.');
     } catch (RuntimeException) {
         $first = ProviderRequestAttempt::sole();
@@ -29,7 +29,7 @@ test('retry preserves each response and links details to its own activity', func
 
     $this->assertSame(503, $first->http_status);
     $this->assertSame('<script>failed</script>', $first->response_body);
-    $this->assertSame('workflow_item_attempt_started', $first->activity->type);
+    $this->assertSame('workflow_step_attempt_started', $first->activity->type);
     $this->assertNotNull($first->finished_at);
     $this->assertGreaterThanOrEqual(0, $first->duration_ms);
     $component = Livewire::test(Detail::class, ['booking' => $booking])
@@ -38,7 +38,7 @@ test('retry preserves each response and links details to its own activity', func
         ->assertDontSee('<script>failed</script>', false)
         ->assertSee('wire:ignore.self', false);
 
-    app()->call([new ProcessBookingWorkflowJob($workflow->fresh()), 'handle']);
+    app()->call([new ProcessBookingWorkflowStepJob($workflowStep->fresh()), 'handle']);
 
     $attempts = ProviderRequestAttempt::orderBy('id')->get();
     $this->assertCount(2, $attempts);
@@ -50,7 +50,7 @@ test('retry preserves each response and links details to its own activity', func
     $component->call('$refresh')
         ->assertSee('RECOVERED-123')
         ->assertSee('&lt;script&gt;failed&lt;/script&gt;', false)
-        ->call('selectWorkflow', $workflow->id)
+        ->call('selectWorkflowStep', $workflowStep->id)
         ->assertSee('RECOVERED-123');
     $other = createBookingForProviderRequestAttempt();
     Livewire::test(Detail::class, ['booking' => $other])->assertDontSee('RECOVERED-123');
@@ -65,7 +65,7 @@ test('missing response records unknown without a fabricated http status or body'
         : Http::failedConnection()]);
 
     try {
-        app()->call([new ProcessBookingWorkflowJob($booking->workflows()->sole()), 'handle']);
+        app()->call([new ProcessBookingWorkflowStepJob($booking->workflowSteps()->sole()), 'handle']);
         $this->fail('Missing response should trigger a retry.');
     } catch (Exception) {
         $attempt = ProviderRequestAttempt::sole();
@@ -88,9 +88,9 @@ test('missing response records unknown without a fabricated http status or body'
 
 function createBookingForProviderRequestAttempt(): Booking
 {
-    Queue::fake([ProcessBookingWorkflowJob::class]);
+    Queue::fake([ProcessBookingWorkflowStepJob::class]);
     test()->post('/demo/bookings/successful', ['item_types' => ['flight'], 'requires_signoff' => false])->assertRedirect();
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, 1);
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, 1);
 
     return Booking::latest('id')->firstOrFail();
 }

@@ -3,9 +3,9 @@
 namespace App\Services\Workflows;
 
 use App\Attributes\HandlesWorkflow;
-use App\Events\WorkflowItemCompleted;
+use App\Events\WorkflowStepCompleted;
 use App\Models\BookingActivity;
-use App\Models\BookingWorkflow;
+use App\Models\BookingWorkflowStep;
 use App\Services\Providers\PropertyProviderClient;
 use App\Services\Workflows\Contracts\WorkflowProcessor;
 use Illuminate\Support\Facades\DB;
@@ -17,32 +17,32 @@ class PropertyConfirmationProcessor implements WorkflowProcessor
         private PropertyProviderClient $provider
     ) {}
 
-    public function process(BookingWorkflow $workflow, ?BookingActivity $activity = null): void
+    public function process(BookingWorkflowStep $workflowStep, ?BookingActivity $activity = null): void
     {
-        $workflow->update([
+        $workflowStep->update([
             'status' => 'processing',
             'message' => 'Checking property availability',
         ]);
 
         $result = $this->provider->confirm(
-            $workflow->booking,
+            $workflowStep->booking,
             $activity,
         );
 
-        DB::transaction(function () use ($workflow, $result) {
-            $workflow->update([
+        DB::transaction(function () use ($workflowStep, $result) {
+            $workflowStep->update([
                 'status' => 'completed',
                 'message' => 'Property availability confirmed'
                     .' ('.$result['provider_reference'].')',
             ]);
 
-            $workflow->activities()->create([
-                'booking_id' => $workflow->booking_id,
-                'type' => 'workflow_item_completed',
+            $workflowStep->activities()->create([
+                'booking_id' => $workflowStep->booking_id,
+                'type' => 'workflow_step_completed',
                 'message' => 'Property confirmation completed',
             ]);
         });
 
-        event(new WorkflowItemCompleted($workflow));
+        event(new WorkflowStepCompleted($workflowStep));
     }
 }

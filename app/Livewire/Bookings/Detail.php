@@ -2,9 +2,9 @@
 
 namespace App\Livewire\Bookings;
 
-use App\Events\WorkflowItemCompleted;
+use App\Events\WorkflowStepCompleted;
 use App\Models\Booking;
-use App\Models\BookingWorkflow;
+use App\Models\BookingWorkflowStep;
 use App\Services\BookingStateService;
 use App\Services\Workflows\WorkflowCoordinator;
 use Illuminate\Database\Eloquent\Collection;
@@ -16,7 +16,7 @@ class Detail extends Component
 {
     public Booking $booking;
 
-    public ?int $selectedWorkflowId = null;
+    public ?int $selectedWorkflowStepId = null;
 
     public function mount(Booking $booking): void
     {
@@ -29,52 +29,52 @@ class Detail extends Component
 
         $this->booking->load([
             'items',
-            'workflows.activities' => fn ($query) => $query->oldest(),
+            'workflowSteps.activities' => fn ($query) => $query->oldest(),
             'activities' => fn ($query) => $query->oldest(),
         ]);
 
-        $selectedWorkflow = $this->selectedWorkflowId
-            ? $this->booking->workflows->firstWhere(
+        $selectedWorkflowStep = $this->selectedWorkflowStepId
+            ? $this->booking->workflowSteps->firstWhere(
                 'id',
-                $this->selectedWorkflowId
+                $this->selectedWorkflowStepId
             )
             : null;
 
-        $activities = $selectedWorkflow
-            ? $selectedWorkflow->activities
+        $activities = $selectedWorkflowStep
+            ? $selectedWorkflowStep->activities
             : $this->booking->activities;
 
         $activities->load('providerAttempt.providerRequest');
 
         $activities = $activities->whereNotIn('type', [
-            'workflow_processing', 'workflow_item_processing',
+            'workflow_processing', 'workflow_step_processing',
             'processing_started', 'booking_processing_complete', 'booking_processing_failed',
         ]);
 
         return view('livewire.bookings.detail', [
-            'selectedWorkflow' => $selectedWorkflow,
+            'selectedWorkflowStep' => $selectedWorkflowStep,
             'activities' => $activities,
             'workflowProgress' => $this->workflowProgress(),
         ]);
     }
 
     /**
-     * @return array{isComplete: bool, taskCount: int, completedCount: int, failedTasks: Collection, approvalTask: ?BookingWorkflow, summaryTitle: string, summaryDescription: string, summaryLabel: string}
+     * @return array{isComplete: bool, taskCount: int, completedCount: int, failedTasks: Collection, approvalTask: ?BookingWorkflowStep, summaryTitle: string, summaryDescription: string, summaryLabel: string}
      */
     private function workflowProgress(): array
     {
-        $taskCount = $this->booking->workflows->count();
-        $completedCount = $this->booking->workflows->where('status', 'completed')->count();
-        $failedTasks = $this->booking->workflows->where('status', 'failed');
-        $approvalTask = $this->booking->workflows->first(fn ($task) => $task->type === 'operations_signoff' && $task->status === 'awaiting_approval');
+        $taskCount = $this->booking->workflowSteps->count();
+        $completedCount = $this->booking->workflowSteps->where('status', 'completed')->count();
+        $failedTasks = $this->booking->workflowSteps->where('status', 'failed');
+        $approvalTask = $this->booking->workflowSteps->first(fn ($task) => $task->type === 'operations_signoff' && $task->status === 'awaiting_approval');
 
         $isComplete = $this->booking->status->value === 'processed' && $failedTasks->isEmpty() && ! $approvalTask;
 
         if ($failedTasks->isNotEmpty()) {
-            $summaryTitle = $failedTasks->count() === 1 ? 'A workflow item needs attention' : 'Workflows need attention';
+            $summaryTitle = $failedTasks->count() === 1 ? 'A workflow step needs attention' : 'Workflow steps need attention';
             $summaryDescription = $failedTasks->count() === 1
                 ? ucfirst(str_replace('_', ' ', $failedTasks->first()->type)).' could not be completed. Review the details and retry when ready.'
-                : $failedTasks->count().' workflows could not be completed. Review each failed step below.';
+                : $failedTasks->count().' workflow steps could not be completed. Review each failed step below.';
             $summaryLabel = 'Action needed';
         } elseif ($approvalTask) {
             $summaryTitle = 'Ready for your approval';
@@ -88,11 +88,11 @@ class Detail extends Component
             $summaryTitle = 'Finalising booking';
             $summaryDescription = 'All workflow steps are complete. Waiting for the booking status to update.';
             $summaryLabel = 'Current state';
-        } elseif ($this->booking->workflows->contains('status', 'processing')) {
+        } elseif ($this->booking->workflowSteps->contains('status', 'processing')) {
             $summaryTitle = 'Work is in progress';
             $summaryDescription = 'Confirmation steps are running. Progress updates automatically here.';
             $summaryLabel = 'Current state';
-        } elseif ($this->booking->workflows->contains('status', 'queued')) {
+        } elseif ($this->booking->workflowSteps->contains('status', 'queued')) {
             $summaryTitle = 'Queued for processing';
             $summaryDescription = 'The next steps are queued and will begin when a worker picks them up.';
             $summaryLabel = 'Current state';
@@ -108,89 +108,89 @@ class Detail extends Component
         );
     }
 
-    public function retryWorkflow(
-        int $workflowId,
+    public function retryWorkflowStep(
+        int $workflowStepId,
         BookingStateService $bookingStateService,
         WorkflowCoordinator $workflowCoordinator
     ): void {
-        $workflow = $this->booking
-            ->workflows()
-            ->findOrFail($workflowId);
+        $workflowStep = $this->booking
+            ->workflowSteps()
+            ->findOrFail($workflowStepId);
 
-        if ($workflow->status !== 'failed') {
+        if ($workflowStep->status !== 'failed') {
             return;
         }
 
-        $workflow->update([
+        $workflowStep->update([
             'status' => 'pending',
-            'message' => 'Waiting to retry workflow',
+            'message' => 'Waiting to retry workflow step',
         ]);
 
-        $workflow->activities()->create([
-            'booking_id' => $workflow->booking_id,
-            'type' => 'workflow_item_retry_requested',
+        $workflowStep->activities()->create([
+            'booking_id' => $workflowStep->booking_id,
+            'type' => 'workflow_step_retry_requested',
             'message' => ucfirst(
-                str_replace('_', ' ', $workflow->type)
+                str_replace('_', ' ', $workflowStep->type)
             ).' manually retried',
         ]);
 
         $bookingStateService->recalculate(
-            $workflow->booking
+            $workflowStep->booking
         );
 
-        $workflowCoordinator->startIfReady($workflow);
+        $workflowCoordinator->queueIfReady($workflowStep);
     }
 
-    public function approveWorkflow(int $workflowId): void
+    public function approveWorkflowStep(int $workflowStepId): void
     {
-        $workflow = $this->booking
-            ->workflows()
-            ->findOrFail($workflowId);
+        $workflowStep = $this->booking
+            ->workflowSteps()
+            ->findOrFail($workflowStepId);
 
         // The workflow may already have been completed but the completion
         // event may not have successfully reconciled the parent booking.
-        if ($workflow->status === 'completed') {
-            event(new WorkflowItemCompleted($workflow));
+        if ($workflowStep->status === 'completed') {
+            event(new WorkflowStepCompleted($workflowStep));
 
             return;
         }
 
-        if ($workflow->status !== 'awaiting_approval') {
+        if ($workflowStep->status !== 'awaiting_approval') {
             return;
         }
 
-        DB::transaction(function () use ($workflow) {
-            $workflow->update([
+        DB::transaction(function () use ($workflowStep) {
+            $workflowStep->update([
                 'status' => 'completed',
                 'message' => 'Operations signoff approved',
             ]);
 
-            $workflow->activities()->create([
-                'booking_id' => $workflow->booking_id,
-                'type' => 'workflow_item_approved',
+            $workflowStep->activities()->create([
+                'booking_id' => $workflowStep->booking_id,
+                'type' => 'workflow_step_approved',
                 'message' => 'Operations signoff approved',
             ]);
         });
 
-        event(new WorkflowItemCompleted($workflow));
+        event(new WorkflowStepCompleted($workflowStep));
     }
 
-    public function selectWorkflow(int $workflowId): void
+    public function selectWorkflowStep(int $workflowStepId): void
     {
         $exists = $this->booking
-            ->workflows()
-            ->whereKey($workflowId)
+            ->workflowSteps()
+            ->whereKey($workflowStepId)
             ->exists();
 
         if (! $exists) {
             return;
         }
 
-        $this->selectedWorkflowId = $workflowId;
+        $this->selectedWorkflowStepId = $workflowStepId;
     }
 
     public function showAllActivity(): void
     {
-        $this->selectedWorkflowId = null;
+        $this->selectedWorkflowStepId = null;
     }
 }

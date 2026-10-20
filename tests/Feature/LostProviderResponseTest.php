@@ -1,6 +1,6 @@
 <?php
 
-use App\Jobs\ProcessBookingWorkflowJob;
+use App\Jobs\ProcessBookingWorkflowStepJob;
 use App\Models\Booking;
 use App\Services\Providers\FlightProviderClient;
 use App\Services\Providers\PropertyProviderClient;
@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Queue;
 uses(RefreshDatabase::class);
 
 test('demo saves lost response setting and all clients pass it to the api', function (string $scenario): void {
-    Queue::fake([ProcessBookingWorkflowJob::class]);
+    Queue::fake([ProcessBookingWorkflowStepJob::class]);
     Http::preventStrayRequests();
     Http::fake([
         url('/api/demo/providers/property/confirm') => Http::response(['provider_reference' => 'PROPERTY-1']),
@@ -37,7 +37,7 @@ test('demo saves lost response setting and all clients pass it to the api', func
             && $request['booking_reference'] === $booking->reference);
     }
     Http::assertSentCount(3);
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, 3);
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, 3);
 })->with([
     ['successful'],
     ['failing'],
@@ -45,12 +45,12 @@ test('demo saves lost response setting and all clients pass it to the api', func
 ]);
 
 test('demo defaults to no lost response', function (): void {
-    Queue::fake([ProcessBookingWorkflowJob::class]);
+    Queue::fake([ProcessBookingWorkflowStepJob::class]);
 
     $this->post('/demo/bookings/successful', ['item_types' => ['car_hire']])->assertRedirect();
 
     $this->assertFalse(Booking::sole()->simulate_lost_response);
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, 1);
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, 1);
 });
 
 test('invalid lost response setting is rejected', function (): void {

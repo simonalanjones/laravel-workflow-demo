@@ -129,7 +129,7 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 - When creating models for tests, use the factories for the models. Check if the factory has custom states that can be used before manually setting up the model.
 - Faker: Use methods such as `$this->faker->word()` or `fake()->randomDigit()`. Follow existing conventions whether to use `$this->faker` or `fake()`.
-- When creating tests, make use of `php artisan make:test [options] {name}` to create a feature test, and pass `--unit` to create a unit test. Most tests should be feature tests.
+- When creating tests, use `php artisan make:test --pest {name} --no-interaction` to create a feature test, and add `--unit` to create a unit test. Most tests should be feature tests.
 
 === pint/core rules ===
 
@@ -138,11 +138,12 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - If you have modified any PHP files, you must run `vendor/bin/pint --dirty --format agent` before finalizing changes to ensure your code matches the project's expected style.
 - Do not run `vendor/bin/pint --test --format agent`, simply run `vendor/bin/pint --format agent` to fix any formatting issues.
 
-=== phpunit/core rules ===
+=== pest/core rules ===
 
-# PHPUnit
+# Pest
 
-- This project uses PHPUnit. Create tests with `php artisan make:test --phpunit {name}`.
+- Pest is the standard for all new tests in this project. Use Pest's `test()` or `it()` syntax, following nearby tests, rather than PHPUnit class-style tests. Pest uses PHPUnit underneath.
+- Create tests with `php artisan make:test --pest {name} --no-interaction`.
 - Do not include the test suite directory in `{name}`. Use `SomeFeatureTest`, not `Feature/SomeFeatureTest`.
 - Read the `testing-best-practices` skill for guidance on coverage, naming, structure, dependency isolation, and review.
 
@@ -150,7 +151,7 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 - Run the narrowest set of tests that covers the change. Pass a file path or `--filter=testName` to `php artisan test --compact`.
 - Rerun a test after each change to it.
-- Run `vendor/bin/phpunit` to call the test runner directly. It accepts the same file path and `--filter=testName` arguments.
+- Run `vendor/bin/pest` to call the test runner directly. It accepts the same file path and `--filter=testName` arguments.
 
 </laravel-boost-guidelines>
 
@@ -168,15 +169,15 @@ This demo models an external provider that supports idempotent requests. A provi
 
 ### Current demo behaviour
 
-- `provider_requests` is client-side storage: one logical outgoing operation per provider and booking, shared across retries. `ProviderRequestClient` saves the key and business payload before HTTP, then sends the persisted values. New requests receive a UUID saved once before HTTP. Requests are found by workflow item, provider, and operation so retries reuse the stored UUID. Existing deterministic keys remain unchanged for compatibility. Future operations such as cancellation need their own request/key, not the confirmation key; cancellation itself is not implemented.
-- `provider_requests.booking_workflow_id` directly links each request to its workflow item, with a unique foreign key. Use `BookingWorkflow::providerRequest()` and `ProviderRequest::workflow()` rather than rebuilding a match from the booking reference in the UI. New client requests save the link before HTTP; retries retain it. The migration backfills unambiguous legacy matches and leaves unmatched records unlinked. Deleting a workflow nulls the link and preserves the request history.
+- `provider_requests` is client-side storage: one logical outgoing operation per provider and booking, shared across retries. `ProviderRequestClient` saves the key and business payload before HTTP, then sends the persisted values. New requests receive a UUID saved once before HTTP. Requests are found by workflow step, provider, and operation so retries reuse the stored UUID. Existing deterministic keys remain unchanged for compatibility. Future operations such as cancellation need their own request/key, not the confirmation key; cancellation itself is not implemented.
+- `provider_requests.booking_workflow_step_id` directly links each request to its workflow step, with a unique foreign key. Use `BookingWorkflowStep::providerRequest()` and `ProviderRequest::workflowStep()` rather than rebuilding a match from the booking reference in the UI. New client requests save the link before HTTP; retries retain it. The migration backfills unambiguous legacy matches and leaves unmatched records unlinked. Deleting a workflow nulls the link and preserves the request history.
 - `demo_provider_operations` is the dummy provider’s separate persistent memory. Only the demo endpoints read/write it. A unique `(provider, idempotency_key)` constraint scopes keys to each provider; processing uses a transaction and `lockForUpdate()`.
 - A succeeded provider operation replays its saved confirmation. Different business input or operation with the same key returns HTTP 409. Pre-confirmation simulated failures can be attempted again; a later success replaces the failure response.
 - Client records store only received responses. An actual connection exception or simulated lost response leaves status `unknown` and no response payload. A subsequent retry uses the same saved key and updates the client record from the returned response. The detail panel never reads demo provider storage.
 - `simulate_lost_response: true` saves success on the dummy provider before returning a special simulated HTTP 503. The client treats this simulation marker as a missing response, not as knowledge of provider success. The workflow and activity explain that the outcome is unknown; retries retrieve the saved confirmation. This is not an actual dropped connection.
 - The booking form exposes “Simulate lost provider response”, off by default. All three clients receive the setting. Simulation controls are excluded from business payload matching. Signoff is local and has no provider request.
 - The separation migration copies legacy provider-side records into `demo_provider_operations`, preserves their keys and confirmations, and clears the old client response payloads to `unknown`: historical provider storage does not prove the client received a response.
-- `provider_requests` and `demo_provider_operations` store the latest operation state. Client-side `provider_request_attempts` records each new HTTP attempt separately: start/end time, duration, outcome, received HTTP status/raw body, and transport error. Each queued provider attempt links to its exact `workflow_item_attempt_started` activity; signoff has no API attempt. Historical attempts are not backfilled because their responses are unavailable. Expandable activity details use only client records and preserve their open state during polling.
+- `provider_requests` and `demo_provider_operations` store the latest operation state. Client-side `provider_request_attempts` records each new HTTP attempt separately: start/end time, duration, outcome, received HTTP status/raw body, and transport error. Each queued provider attempt links to its exact `workflow_step_attempt_started` activity; signoff has no API attempt. Historical attempts are not backfilled because their responses are unavailable. Expandable activity details use only client records and preserve their open state during polling.
 
 ### Commercial examples and limits
 
@@ -187,4 +188,4 @@ Do not describe idempotency as a universal commercial API guarantee. Verify each
 
 ## Project memory: queued status and dispatch
 
-The stuck-queued dispatch gap was reproduced and fixed on 8 October 2026. `WorkflowCoordinator` now atomically claims a pending workflow item and dispatches its job inside the workflow database connection’s transaction, using `beforeCommit()` so database queue insertion happens within that transaction. This guarantee relies on the database queue and workflow writes using the same database connection (the current configuration). Reassess before switching to Redis, SQS, or a separate queue database; a transactional outbox would be needed for equivalent cross-system guarantees. Tests force job insertion failure and verify rollback to pending, subsequent scheduling, and rollback of both writes even with queue `after_commit` enabled. No periodic pending-item recovery scheduler has been implemented.
+The stuck-queued dispatch gap was reproduced and fixed on 8 October 2026. `WorkflowCoordinator` now atomically claims a pending workflow step and dispatches its job inside the workflow database connection’s transaction, using `beforeCommit()` so database queue insertion happens within that transaction. This guarantee relies on the database queue and workflow writes using the same database connection (the current configuration). Reassess before switching to Redis, SQS, or a separate queue database; a transactional outbox would be needed for equivalent cross-system guarantees. Tests force job insertion failure and verify rollback to pending, subsequent scheduling, and rollback of both writes even with queue `after_commit` enabled. `bookings:recover` now rechecks pending steps and recalculates unfinished booking statuses every minute when the scheduler is running.

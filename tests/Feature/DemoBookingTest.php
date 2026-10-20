@@ -1,6 +1,6 @@
 <?php
 
-use App\Jobs\ProcessBookingWorkflowJob;
+use App\Jobs\ProcessBookingWorkflowStepJob;
 use App\Models\Booking;
 use App\Services\Workflows\WorkflowCoordinator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,33 +21,33 @@ dataset('demo booking combinations', function (): iterable {
     ];
 
     foreach (['successful', 'failing', 'random-failure'] as $scenario) {
-        foreach ($combinations as [$types, $workflows]) {
-            yield $scenario.' '.implode(', ', $types) => [$scenario, $types, $workflows];
+        foreach ($combinations as [$types, $workflowSteps]) {
+            yield $scenario.' '.implode(', ', $types) => [$scenario, $types, $workflowSteps];
         }
     }
 });
 
 /**
  * @param  list<string>  $types
- * @param  list<string>  $workflows
+ * @param  list<string>  $workflowSteps
  */
-test('creates only selected items and signoff waits only for their workflows', function (string $scenario, array $types, array $workflows): void {
-    Queue::fake([ProcessBookingWorkflowJob::class]);
+test('creates only selected items and signoff waits only for their workflows', function (string $scenario, array $types, array $workflowSteps): void {
+    Queue::fake([ProcessBookingWorkflowStepJob::class]);
 
     $response = $this->post('/demo/bookings/'.$scenario, ['item_types' => $types]);
 
     $booking = Booking::sole();
-    $response->assertRedirect('/bookings/'.$booking->id);
+    $response->assertRedirect('/bookings/'.$booking->public_id);
     $this->assertSame($types, $booking->items()->orderBy('id')->pluck('type')->all());
-    $this->assertSame([...$workflows, 'operations_signoff'], $booking->workflows()->orderBy('id')->pluck('type')->all());
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, count($workflows));
-    Queue::assertNotPushed(ProcessBookingWorkflowJob::class, fn (ProcessBookingWorkflowJob $job): bool => $job->workflow->type === 'operations_signoff');
+    $this->assertSame([...$workflowSteps, 'operations_signoff'], $booking->workflowSteps()->orderBy('id')->pluck('type')->all());
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, count($workflowSteps));
+    Queue::assertNotPushed(ProcessBookingWorkflowStepJob::class, fn (ProcessBookingWorkflowStepJob $job): bool => $job->workflowStep->type === 'operations_signoff');
 
-    $booking->workflows()->whereIn('type', $workflows)->update(['status' => 'completed']);
-    $signoff = $booking->workflows()->where('type', 'operations_signoff')->sole();
-    app(WorkflowCoordinator::class)->startIfReady($signoff);
+    $booking->workflowSteps()->whereIn('type', $workflowSteps)->update(['status' => 'completed']);
+    $signoff = $booking->workflowSteps()->where('type', 'operations_signoff')->sole();
+    app(WorkflowCoordinator::class)->queueIfReady($signoff);
 
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, fn (ProcessBookingWorkflowJob $job): bool => $job->workflow->id === $signoff->id);
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, fn (ProcessBookingWorkflowStepJob $job): bool => $job->workflowStep->id === $signoff->id);
 })->with('demo booking combinations');
 
 test('rejects invalid selection without creating a booking', function (array $payload, string $error): void {
@@ -75,12 +75,12 @@ test('create page shows selection and missing selection error', function (): voi
 });
 
 test('bookings created at the same time have unique references', function (): void {
-    Queue::fake([ProcessBookingWorkflowJob::class]);
+    Queue::fake([ProcessBookingWorkflowStepJob::class]);
     $this->freezeTime();
 
     $this->post('/demo/bookings/successful', ['item_types' => ['flight']])->assertRedirect();
     $this->post('/demo/bookings/successful', ['item_types' => ['car_hire']])->assertRedirect();
 
     $this->assertDatabaseCount('bookings', 2);
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, 2);
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, 2);
 });

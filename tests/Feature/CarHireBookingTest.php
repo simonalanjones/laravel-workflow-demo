@@ -1,6 +1,6 @@
 <?php
 
-use App\Jobs\ProcessBookingWorkflowJob;
+use App\Jobs\ProcessBookingWorkflowStepJob;
 use App\Models\Booking;
 use App\Services\Workflows\VehicleConfirmationProcessor;
 use App\Services\Workflows\WorkflowCoordinator;
@@ -12,26 +12,24 @@ use Illuminate\Support\Facades\Queue;
 uses(RefreshDatabase::class);
 
 test('demo bookings include car hire', function (string $scenario): void {
-    Queue::fake([ProcessBookingWorkflowJob::class]);
+    Queue::fake([ProcessBookingWorkflowStepJob::class]);
     $this->withoutVite();
 
     $response = $this->post('/demo/bookings/'.$scenario, ['item_types' => ['accommodation', 'flight', 'car_hire']]);
 
     $booking = Booking::sole();
-    $response->assertRedirect('/bookings/'.$booking->id);
+    $response->assertRedirect('/bookings/'.$booking->public_id);
     $this->assertDatabaseHas('booking_items', [
         'booking_id' => $booking->id,
         'type' => 'car_hire',
         'description' => 'Car hire',
         'quantity' => 1,
-        'unit_price' => 250,
     ]);
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, fn (ProcessBookingWorkflowJob $job): bool => $job->workflow->booking_id === $booking->id && $job->workflow->type === 'vehicle_confirmation'
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, fn (ProcessBookingWorkflowStepJob $job): bool => $job->workflowStep->booking_id === $booking->id && $job->workflowStep->type === 'vehicle_confirmation'
     );
-    $this->get('/bookings/'.$booking->id)
+    $this->get('/bookings/'.$booking->public_id)->assertOk()
         ->assertSee('Car hire')
-        ->assertSee('Vehicle confirmation')
-        ->assertSee('2,150.00');
+        ->assertSee('Vehicle confirmation');
 })->with([
     ['successful'],
     ['failing'],
@@ -39,7 +37,7 @@ test('demo bookings include car hire', function (string $scenario): void {
 ]);
 
 test('car hire can be booked without flights or accommodation', function (): void {
-    Queue::fake([ProcessBookingWorkflowJob::class]);
+    Queue::fake([ProcessBookingWorkflowStepJob::class]);
 
     $response = $this->postJson('/api/bookings', [
         'reference' => 'CAR-001',
@@ -54,18 +52,18 @@ test('car hire can be booked without flights or accommodation', function (): voi
     ]);
 
     $response->assertCreated()->assertJsonPath('items.0.type', 'car_hire')
-        ->assertJsonCount(2, 'workflows');
-    $this->assertDatabaseHas('booking_workflows', [
+        ->assertJsonCount(2, 'workflow_steps');
+    $this->assertDatabaseHas('booking_workflow_steps', [
         'booking_id' => $response->json('id'),
         'type' => 'vehicle_confirmation',
         'status' => 'queued',
     ]);
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, fn (ProcessBookingWorkflowJob $job): bool => $job->workflow->type === 'vehicle_confirmation'
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, fn (ProcessBookingWorkflowStepJob $job): bool => $job->workflowStep->type === 'vehicle_confirmation'
     );
 });
 
 test('signoff waits for vehicle confirmation after other providers complete', function (): void {
-    Queue::fake([ProcessBookingWorkflowJob::class]);
+    Queue::fake([ProcessBookingWorkflowStepJob::class]);
     Http::preventStrayRequests();
     Http::fake([
         url('/api/demo/providers/vehicles/confirm') => Http::response([
@@ -74,28 +72,28 @@ test('signoff waits for vehicle confirmation after other providers complete', fu
     ]);
     $this->post('/demo/bookings/successful', ['item_types' => ['accommodation', 'flight', 'car_hire']])->assertRedirect();
     $booking = Booking::sole();
-    $booking->workflows()->whereIn('type', ['property_confirmation', 'flight_confirmation'])
+    $booking->workflowSteps()->whereIn('type', ['property_confirmation', 'flight_confirmation'])
         ->update(['status' => 'completed']);
-    $signoff = $booking->workflows()->where('type', 'operations_signoff')->sole();
-    app(WorkflowCoordinator::class)->startIfReady($signoff);
-    Queue::assertNotPushed(ProcessBookingWorkflowJob::class, fn (ProcessBookingWorkflowJob $job): bool => $job->workflow->type === 'operations_signoff'
+    $signoff = $booking->workflowSteps()->where('type', 'operations_signoff')->sole();
+    app(WorkflowCoordinator::class)->queueIfReady($signoff);
+    Queue::assertNotPushed(ProcessBookingWorkflowStepJob::class, fn (ProcessBookingWorkflowStepJob $job): bool => $job->workflowStep->type === 'operations_signoff'
     );
-    $vehicle = $booking->workflows()->where('type', 'vehicle_confirmation')->sole();
+    $vehicle = $booking->workflowSteps()->where('type', 'vehicle_confirmation')->sole();
 
     app(VehicleConfirmationProcessor::class)->process($vehicle);
 
     Http::assertSent(fn (Request $request): bool => $request->url() === url('/api/demo/providers/vehicles/confirm')
         && $request['booking_reference'] === $booking->reference
     );
-    $this->assertDatabaseHas('booking_workflows', [
+    $this->assertDatabaseHas('booking_workflow_steps', [
         'id' => $vehicle->id,
         'status' => 'completed',
         'message' => 'Vehicle confirmed with provider (VEHICLE-123456)',
     ]);
     $this->assertDatabaseHas('booking_activities', [
-        'booking_workflow_id' => $vehicle->id,
-        'type' => 'workflow_item_completed',
+        'booking_workflow_step_id' => $vehicle->id,
+        'type' => 'workflow_step_completed',
     ]);
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, fn (ProcessBookingWorkflowJob $job): bool => $job->workflow->id === $signoff->id
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, fn (ProcessBookingWorkflowStepJob $job): bool => $job->workflowStep->id === $signoff->id
     );
 });

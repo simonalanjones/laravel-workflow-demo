@@ -3,9 +3,9 @@
 namespace App\Services\Workflows\Contracts;
 
 use App\Models\BookingActivity;
-use App\Models\BookingWorkflow;
+use App\Models\BookingWorkflowStep;
 
 interface WorkflowProcessor
 {
-    public function process(BookingWorkflow $workflow, ?BookingActivity $activity = null): void;
+    public function process(BookingWorkflowStep $workflowStep, ?BookingActivity $activity = null): void;
 }

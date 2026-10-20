@@ -1,4 +1,4 @@
-@props(['activities', 'workflows', 'selectedWorkflow' => null, 'selectedWorkflowId' => null])
+@props(['activities', 'workflowSteps', 'selectedWorkflowStep' => null, 'selectedWorkflowStepId' => null])
 
 <section aria-labelledby="history-title" {{ $attributes->class('min-w-0 py-1 lg:sticky lg:top-8') }}>
     <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
@@ -6,7 +6,7 @@
             <h2 id="history-title" class="text-sm/6 font-semibold text-slate-900 dark:text-white">Recent activity</h2>
             <p class="mt-1 text-xs text-slate-500 dark:text-gray-400">Latest first · updates automatically</p>
         </div>
-        <x-bookings.activity.filter :workflows="$workflows" :selected-workflow="$selectedWorkflow" :selected-workflow-id="$selectedWorkflowId" />
+        <x-bookings.activity.filter :workflow-steps="$workflowSteps" :selected-workflow-step="$selectedWorkflowStep" :selected-workflow-step-id="$selectedWorkflowStepId" />
     </div>
 
     <ol x-bind:class="{ 'is-expanded': showFullHistory }"

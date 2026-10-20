@@ -5,40 +5,80 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreDemoBookingRequest;
 use App\Services\BookingCreator;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 class DemoBookingController extends Controller
 {
-    public function successful(StoreDemoBookingRequest $request, BookingCreator $bookingCreator): RedirectResponse
-    {
-        return $this->create($request, $bookingCreator, 'DEMO-', 'Successful Demo', 'success@example.com');
+    public function successful(
+        StoreDemoBookingRequest $request,
+        BookingCreator $bookingCreator,
+    ): RedirectResponse {
+        return $this->create(
+            $request,
+            $bookingCreator,
+            'DEMO-'.Str::uuid(),
+            Arr::random(['Alex Morgan', 'Sam Taylor', 'Jordan Patel', 'Casey Wilson']),
+            'guest-'.Str::lower(Str::random(8)).'@example.com',
+        );
     }
 
-    public function failing(StoreDemoBookingRequest $request, BookingCreator $bookingCreator): RedirectResponse
-    {
-        return $this->create($request, $bookingCreator, 'DEMO-FAIL-', 'Failure Demo', 'fail@example.com');
+    public function failing(
+        StoreDemoBookingRequest $request,
+        BookingCreator $bookingCreator,
+    ): RedirectResponse {
+        return $this->create(
+            $request,
+            $bookingCreator,
+            'DEMO-FAIL-'.Str::uuid(),
+            'Failure Demo',
+            'fail@example.com',
+        );
     }
 
-    public function randomFailure(StoreDemoBookingRequest $request, BookingCreator $bookingCreator): RedirectResponse
-    {
-        return $this->create($request, $bookingCreator, 'DEMO-FAILR-', 'Random Failure Demo', 'random@example.com');
+    public function randomFailure(
+        StoreDemoBookingRequest $request,
+        BookingCreator $bookingCreator,
+    ): RedirectResponse {
+        return $this->create(
+            $request,
+            $bookingCreator,
+            'DEMO-FAILR-'.Str::uuid(),
+            'Random Failure Demo',
+            'random@example.com',
+        );
     }
 
     private function create(
         StoreDemoBookingRequest $request,
         BookingCreator $bookingCreator,
-        string $referencePrefix,
+        string $reference,
         string $customerName,
         string $customerEmail,
     ): RedirectResponse {
         $items = [
-            ['type' => 'accommodation', 'description' => 'Villa accommodation', 'quantity' => 1, 'unit_price' => 1200],
-            ['type' => 'flight', 'description' => 'Return flights', 'quantity' => 2, 'unit_price' => 350],
-            ['type' => 'car_hire', 'description' => 'Car hire', 'quantity' => 1, 'unit_price' => 250],
+            [
+                'type' => 'accommodation',
+                'description' => 'Villa accommodation',
+                'quantity' => 1,
+                'unit_price' => Arr::random([800, 1000, 1200, 1500, 1800]),
+            ],
+            [
+                'type' => 'flight',
+                'description' => 'Return flights',
+                'quantity' => 2,
+                'unit_price' => Arr::random([200, 275, 350, 450, 600]),
+            ],
+            [
+                'type' => 'car_hire',
+                'description' => 'Car hire',
+                'quantity' => 1,
+                'unit_price' => Arr::random([150, 200, 250, 300, 400]),
+            ],
         ];
 
         $booking = $bookingCreator->create([
-            'reference' => $referencePrefix.Str::uuid(),
+            'reference' => $reference,
             'customer_name' => $customerName,
             'customer_email' => $customerEmail,
             'requires_signoff' => (bool) $request->validated('requires_signoff', true),
@@ -50,6 +90,8 @@ class DemoBookingController extends Controller
             )),
         ]);
 
-        return redirect('/bookings/'.$booking->id);
+        return redirect()->route('bookings.show', [
+            'booking' => $booking->public_id,
+        ]);
     }
 }

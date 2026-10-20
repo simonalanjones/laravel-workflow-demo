@@ -17,7 +17,7 @@ class BookingController extends Controller
         );
 
         return response()->json(
-            $booking->load(['items', 'workflows']),
+            $booking->load(['items', 'workflowSteps']),
             201
         );
     }

@@ -19,10 +19,10 @@ class ProcessNewBooking
      */
     public function handle(BookingCreated $event): void
     {
-        $event->booking->loadMissing('workflows');
+        $event->booking->loadMissing('workflowSteps');
 
-        foreach ($event->booking->workflows as $workflow) {
-            $this->workflowCoordinator->startIfReady($workflow);
+        foreach ($event->booking->workflowSteps as $workflowStep) {
+            $this->workflowCoordinator->queueIfReady($workflowStep);
         }
     }
 }

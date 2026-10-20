@@ -2,7 +2,7 @@
 
 namespace App\View\Components\Bookings\Workflow;
 
-use App\Models\BookingWorkflow;
+use App\Models\BookingWorkflowStep;
 use Closure;
 use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
@@ -17,12 +17,12 @@ class Row extends Component
      * Create a new component instance.
      */
     public function __construct(
-        public BookingWorkflow $workflow,
+        public BookingWorkflowStep $workflowStep,
         public array $progress,
         public int $position,
-        public ?int $selectedWorkflowId = null,
+        public ?int $selectedWorkflowStepId = null,
     ) {
-        $this->taskTone = match ($workflow->status) {
+        $this->taskTone = match ($workflowStep->status) {
             'completed' => 'text-emerald-700 dark:text-emerald-300',
             'failed' => 'text-red-600 dark:text-red-400',
             'awaiting_approval' => 'text-amber-700 dark:text-amber-300',
@@ -30,14 +30,14 @@ class Row extends Component
             default => 'text-slate-500 dark:text-gray-400',
         };
 
-        $this->taskMessage = $workflow->status === 'completed'
-            ? match ($workflow->type) {
+        $this->taskMessage = $workflowStep->status === 'completed'
+            ? match ($workflowStep->type) {
                 'property_confirmation' => 'Property availability confirmed',
                 'flight_confirmation' => 'Flight confirmed with provider',
                 'vehicle_confirmation' => 'Vehicle confirmed with provider',
-                default => $workflow->message,
+                default => $workflowStep->message,
             }
-        : $workflow->message;
+        : $workflowStep->message;
     }
 
     /**

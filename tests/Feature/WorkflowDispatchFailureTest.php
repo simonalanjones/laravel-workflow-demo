@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\Booking;
-use App\Models\BookingWorkflow;
+use App\Models\BookingWorkflowStep;
 use App\Services\Workflows\WorkflowCoordinator;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -11,46 +11,46 @@ uses(RefreshDatabase::class);
 
 test('failed job insertion leaves item pending and a later dispatch can succeed', function (): void {
     config(['queue.default' => 'database', 'queue.connections.database.table' => 'missing_test_queue_table']);
-    $workflow = createWorkflowForWorkflowDispatchFailure();
+    $workflowStep = createWorkflowForWorkflowDispatchFailure();
     $coordinator = app(WorkflowCoordinator::class);
 
     try {
-        $coordinator->startIfReady($workflow);
+        $coordinator->queueIfReady($workflowStep);
         $this->fail('Queue insertion should fail.');
     } catch (QueryException) {
         $this->assertDatabaseCount('jobs', 0);
     }
 
-    $this->assertSame('pending', $workflow->fresh()->status);
-    $this->assertSame('Waiting to start', $workflow->fresh()->message);
+    $this->assertSame('pending', $workflowStep->fresh()->status);
+    $this->assertSame('Waiting to start', $workflowStep->fresh()->message);
 
     config([
         'queue.connections.recovered' => array_replace(config('queue.connections.database'), ['table' => 'jobs']),
         'queue.default' => 'recovered',
     ]);
-    $coordinator->startIfReady($workflow->fresh());
+    $coordinator->queueIfReady($workflowStep->fresh());
 
-    $this->assertSame('queued', $workflow->fresh()->status);
+    $this->assertSame('queued', $workflowStep->fresh()->status);
     $this->assertDatabaseCount('jobs', 1);
 });
 
 test('status and job insertion roll back together even when after commit is enabled', function (): void {
     config(['queue.default' => 'database', 'queue.connections.database.after_commit' => true]);
-    $workflow = createWorkflowForWorkflowDispatchFailure();
+    $workflowStep = createWorkflowForWorkflowDispatchFailure();
     DB::beginTransaction();
     try {
-        app(WorkflowCoordinator::class)->startIfReady($workflow);
-        $this->assertSame('queued', $workflow->fresh()->status);
+        app(WorkflowCoordinator::class)->queueIfReady($workflowStep);
+        $this->assertSame('queued', $workflowStep->fresh()->status);
         $this->assertDatabaseCount('jobs', 1);
     } finally {
         DB::rollBack();
     }
 
-    $this->assertSame('pending', $workflow->fresh()->status);
+    $this->assertSame('pending', $workflowStep->fresh()->status);
     $this->assertDatabaseCount('jobs', 0);
 });
 
-function createWorkflowForWorkflowDispatchFailure(): BookingWorkflow
+function createWorkflowForWorkflowDispatchFailure(): BookingWorkflowStep
 {
     $booking = Booking::create([
         'reference' => 'DISPATCH-TEST',
@@ -59,7 +59,7 @@ function createWorkflowForWorkflowDispatchFailure(): BookingWorkflow
         'status' => 'pending',
     ]);
 
-    return $booking->workflows()->create([
+    return $booking->workflowSteps()->create([
         'type' => 'property_confirmation',
         'status' => 'pending',
         'message' => 'Waiting to start',

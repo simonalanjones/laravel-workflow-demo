@@ -23,8 +23,8 @@ class Entry extends Component
         $this->isFailure = str_contains($activity->type, 'failed');
 
         $this->isSuccess = in_array($activity->type, [
-            'workflow_item_completed',
-            'workflow_item_approved',
+            'workflow_step_completed',
+            'workflow_step_approved',
             'booking_processed',
         ], true);
     }

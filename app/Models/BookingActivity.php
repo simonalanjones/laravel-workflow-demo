@@ -10,7 +10,7 @@ class BookingActivity extends Model
 {
     protected $fillable = [
         'booking_id',
-        'booking_workflow_id',
+        'booking_workflow_step_id',
         'type',
         'message',
     ];
@@ -20,11 +20,11 @@ class BookingActivity extends Model
         return $this->belongsTo(Booking::class);
     }
 
-    public function workflow(): BelongsTo
+    public function workflowStep(): BelongsTo
     {
         return $this->belongsTo(
-            BookingWorkflow::class,
-            'booking_workflow_id'
+            BookingWorkflowStep::class,
+            'booking_workflow_step_id'
         );
     }
 

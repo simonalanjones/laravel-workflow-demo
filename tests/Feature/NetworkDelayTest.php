@@ -1,6 +1,6 @@
 <?php
 
-use App\Jobs\ProcessBookingWorkflowJob;
+use App\Jobs\ProcessBookingWorkflowStepJob;
 use App\Models\Booking;
 use App\Services\Providers\FlightProviderClient;
 use App\Services\Providers\PropertyProviderClient;
@@ -15,7 +15,7 @@ use Illuminate\Support\Sleep;
 uses(RefreshDatabase::class);
 
 test('demo saves delay setting and all clients pass it to the api', function (string $scenario): void {
-    Queue::fake([ProcessBookingWorkflowJob::class]);
+    Queue::fake([ProcessBookingWorkflowStepJob::class]);
     Http::preventStrayRequests();
     Http::fake([
         url('/api/demo/providers/property/confirm') => Http::response(['provider_reference' => 'PROPERTY-1']),
@@ -39,7 +39,7 @@ test('demo saves delay setting and all clients pass it to the api', function (st
             && $request['booking_reference'] === $booking->reference);
     }
     Http::assertSentCount(3);
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, 3);
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, 3);
 })->with([
     ['successful'],
     ['failing'],
@@ -89,12 +89,12 @@ test('provider does not delay when disabled or omitted', function (string $endpo
 ]);
 
 test('demo defaults to no delay', function (): void {
-    Queue::fake([ProcessBookingWorkflowJob::class]);
+    Queue::fake([ProcessBookingWorkflowStepJob::class]);
 
     $this->post('/demo/bookings/successful', ['item_types' => ['car_hire']])->assertRedirect();
 
     $this->assertFalse(Booking::sole()->simulate_network_delay);
-    Queue::assertPushed(ProcessBookingWorkflowJob::class, 1);
+    Queue::assertPushed(ProcessBookingWorkflowStepJob::class, 1);
 });
 
 test('invalid delay setting is rejected', function (): void {

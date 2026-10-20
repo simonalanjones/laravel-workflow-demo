@@ -1,6 +1,6 @@
 <?php
 
-use App\Jobs\ProcessBookingWorkflowJob;
+use App\Jobs\ProcessBookingWorkflowStepJob;
 use App\Models\Booking;
 use App\Services\Workflows\WorkflowCoordinator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,7 +18,7 @@ test('an eligible workflow is only queued once', function () {
         'status' => 'pending',
     ]);
 
-    $workflow = $booking->workflows()->create([
+    $workflowStep = $booking->workflowSteps()->create([
         'type' => 'property_confirmation',
         'status' => 'pending',
         'message' => 'Waiting to start property confirmation',
@@ -26,15 +26,15 @@ test('an eligible workflow is only queued once', function () {
 
     $coordinator = app(WorkflowCoordinator::class);
 
-    $coordinator->startIfReady($workflow);
-    $coordinator->startIfReady($workflow);
+    $coordinator->queueIfReady($workflowStep);
+    $coordinator->queueIfReady($workflowStep);
 
     Queue::assertPushed(
-        ProcessBookingWorkflowJob::class,
+        ProcessBookingWorkflowStepJob::class,
         1
     );
 
-    expect($workflow->fresh()->status)
+    expect($workflowStep->fresh()->status)
         ->toBe('queued');
 });
 
@@ -48,19 +48,19 @@ test('a dependent workflow waits for incomplete dependencies', function () {
         'status' => 'pending',
     ]);
 
-    $booking->workflows()->create([
+    $booking->workflowSteps()->create([
         'type' => 'property_confirmation',
         'status' => 'completed',
         'message' => 'Property confirmed',
     ]);
 
-    $booking->workflows()->create([
+    $booking->workflowSteps()->create([
         'type' => 'flight_confirmation',
         'status' => 'processing',
         'message' => 'Flight confirmation in progress',
     ]);
 
-    $signoff = $booking->workflows()->create([
+    $signoff = $booking->workflowSteps()->create([
         'type' => 'operations_signoff',
         'status' => 'pending',
         'message' => 'Waiting for operations signoff',
@@ -68,14 +68,14 @@ test('a dependent workflow waits for incomplete dependencies', function () {
 
     $coordinator = app(WorkflowCoordinator::class);
 
-    $coordinator->startIfReady($signoff);
+    $coordinator->queueIfReady($signoff);
 
-    Queue::assertNotPushed(ProcessBookingWorkflowJob::class);
+    Queue::assertNotPushed(ProcessBookingWorkflowStepJob::class);
 
     expect($signoff->fresh()->status)
         ->toBe('pending');
 
-    $flight = $booking->workflows()
+    $flight = $booking->workflowSteps()
         ->where('type', 'flight_confirmation')
         ->firstOrFail();
 
@@ -84,10 +84,10 @@ test('a dependent workflow waits for incomplete dependencies', function () {
         'message' => 'Flight confirmed',
     ]);
 
-    $coordinator->startIfReady($signoff->fresh());
+    $coordinator->queueIfReady($signoff->fresh());
 
     Queue::assertPushed(
-        ProcessBookingWorkflowJob::class,
+        ProcessBookingWorkflowStepJob::class,
         1
     );
 
