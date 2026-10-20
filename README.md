@@ -1,10 +1,10 @@
 # Laravel workflow demo
 
-Follow a travel booking as accommodation, flights and car hire are confirmed by background jobs.
+A hands-on Laravel demo of resilient background workflows: coordinate travel bookings across multiple providers, recover from failures, and retry safely without duplicate confirmations.
 
-Watch each step update live, approve bookings that need operations signoff, and explore what happens when providers fail, respond slowly, or complete a request whose response never reaches the application.
+Watch each step update live, approve bookings that need operations signoff, and explore how Laravel queues coordinate a travel booking across multiple providers, handle failures, and safely retry when a confirmation response never arrives.
 
-Built with Laravel 13, Livewire 4 and PHP 8.4, this learning project demonstrates queues, workflow dependencies, retries and idempotent provider requests.
+Built with Laravel 13, Livewire 4 and PHP 8.4, this project demonstrates queues, workflow dependencies, retries and idempotent provider requests.
 
 ![Laravel workflow demo landing page showing an example booking workflow and lost-response scenario](screenshots/app_landing_page.png)
 
