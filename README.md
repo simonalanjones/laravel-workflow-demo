@@ -22,7 +22,7 @@ The providers are simulated inside the application. No real travel reservations 
 
 ## Quick start
 
-Use PHP 8.4, Composer, Node.js/npm compatible with the project's locked dependencies, and Laravel Herd.
+Use PHP 8.4 or later with SQLite support, Composer, and Node.js/npm compatible with the project's locked dependencies. Laravel Herd is optional; you can also use PHP's built-in development server.
 
 From a fresh checkout:
 
@@ -38,7 +38,7 @@ npm run build
 
 Only copy `.env.example` if you do not already have a local `.env`.
 
-In `.env`, set `APP_URL` to your project's Herd URL. The queue worker calls the simulated providers through this URL, so it must also be reachable from CLI PHP.
+Choose one of the web server options below and set `APP_URL` in your local `.env` to match. The queue worker calls the simulated providers through this URL, so it must also be reachable from CLI PHP.
 
 Keep these settings:
 
@@ -49,7 +49,29 @@ CACHE_STORE=database
 
 Leave `DB_QUEUE_CONNECTION` unset. This keeps queue inserts and workflow updates on the same database connection, so claiming a workflow step and adding its queue job can commit or roll back together.
 
-Herd serves the website. Start a queue worker in a separate terminal:
+### Serve the website
+
+**With Herd:** link or park the project in Herd and set `APP_URL` to the site's URL. Herd serves the website, so you do not need to run `php artisan serve`.
+
+**Without Herd (macOS/Linux, or Linux through WSL on Windows):** set this in `.env`:
+
+```dotenv
+APP_URL=http://127.0.0.1:8000
+```
+
+Then start the development server from the project directory:
+
+```sh
+PHP_CLI_SERVER_WORKERS=4 php artisan serve --host=127.0.0.1 --port=8000 --tries=1 --no-reload
+```
+
+Multiple workers let the website and simulated provider endpoints handle requests concurrently, which is useful when simulating slow responses. Laravel requires `--no-reload` to honour the worker setting; restart the server after changing `.env`. If port 8000 is already occupied, choose another port and update `APP_URL` to match.
+
+PHP's multiple-worker development server is not supported on native Windows. Use WSL for the command above, or a local web server such as Herd. These server instructions are for local development.
+
+### Run the background processes
+
+With either server option, start a queue worker in a separate terminal:
 
 ```sh
 php artisan queue:work --queue=default --timeout=60 --no-interaction
@@ -61,13 +83,13 @@ Start the scheduler in another terminal:
 php artisan schedule:work
 ```
 
-Leave both running while exploring the demo. The worker processes jobs; the scheduler checks for pending work and stale booking statuses every minute. Press Ctrl+C to stop either process.
+Leave the web server, worker and scheduler running while exploring the demo. The worker processes jobs; the scheduler checks for pending work and stale booking statuses every minute. Press Ctrl+C in each terminal to stop its process.
 
 For frontend development, run `npm run dev` instead of rebuilding assets after every change. Restart long-running workers after backend code changes.
 
 ## Try a booking
 
-Open the bookings page on your Herd site, create a booking, then open its details to follow the workflow.
+Open your site's `/bookings` page, create a booking, then open its details to follow the workflow. Use the site address configured in `APP_URL`, whether you chose Herd or the development server.
 
 ![Booking details showing workflow progress and activity history](screenshots/booking_detail_dark.png)
 
