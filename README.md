@@ -8,7 +8,7 @@ Built with Laravel 13 and Livewire 4. Requires PHP 8.4 or later.
 
 ## What you can explore
 
-- **Background processing** — a queue worker confirms the different parts of a booking.
+- **Background processing** — queue jobs request confirmations for individual booking steps.
 - **Workflow dependencies** — steps wait for other steps to finish.
 - **Live progress** — booking status and activity update automatically.
 - **Retries and recovery** — watch automatic retries, retry failed steps yourself, and pick up pending work.
@@ -95,20 +95,20 @@ Start with a successful booking, then try the failure and delay controls:
 
 | Try this | What to look for |
 | --- | --- |
-| Successful booking | Provider steps complete, then wait for operations approval if signoff is enabled. |
+| Successful booking | Provider steps complete, then the booking waits for operations approval if signoff is enabled. |
 | Disable signoff | The booking completes once all provider steps finish. |
 | Failing booking with a flight | The flight provider repeatedly fails. Automatic retries eventually leave the step failed. |
 | Random failures | Provider attempts may fail, then succeed on a later retry. |
 | Simulate network delay | Responses take an additional 1–5 seconds, making progress easier to follow. |
-| Simulate lost provider response | The provider completes the operation, but the application initially records an unknown outcome. A retry retrieves the saved confirmation. |
+| Simulate lost provider response | The provider completes a booking step, but the application initially records an unknown outcome. A retry retrieves the saved confirmation. |
 
 The deliberately failing flight scenario keeps failing, even if you retry it manually.
 
 ### Why the lost-response example matters
 
-A provider can confirm a booking even when the application never receives its response. Retrying could create a duplicate booking.
+A provider can complete a booking step even if the application never receives its response. Retrying could repeat that operation.
 
-The demo gives each request a unique key, called an **idempotency key**, and reuses it on retries. The simulated provider recognises the key and returns the saved confirmation instead of confirming the booking again.
+The demo gives each request a unique key, called an **idempotency key**, and reuses it on retries. The simulated provider recognises the key and returns the saved confirmation instead of repeating the booking step.
 
 The interface shows only what the application knows, so the outcome stays unknown until a retry retrieves the confirmation. The missing response is simulated.
 
